@@ -108,6 +108,19 @@
     color:#fde68a;border-radius:11px;padding:14px;font-size:14px;
   }
   .full{grid-column:1/-1}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .tab{
+    cursor:pointer;border:1px solid var(--line);background:var(--card2);
+    color:var(--muted);border-radius:9px;padding:8px 13px;font-size:13px;transition:.15s;
+  }
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--ink);border-color:var(--accent);background:rgba(108,140,255,.15)}
+  .plot-wrap{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px}
+  svg.plot{width:100%;height:auto;display:block}
+  .plot-cap{color:var(--muted);font-size:12.5px;margin-top:10px;line-height:1.5}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:10px;height:10px;border-radius:50%}
   footer{color:var(--muted);font-size:12.5px;text-align:center;margin-top:34px}
 </style>
 </head>
@@ -172,6 +185,23 @@
       <div id="rec-box"><div class="empty">Select a researcher from the list on the right.</div></div>
     </div>
 
+  </div>
+
+  <!-- ============ MODEL INSIGHTS ============ -->
+  <div class="card" style="margin-top:22px">
+    <h2>🔬 Model insights</h2>
+    <p class="desc">The dimensionality-reduction and network analysis behind the model — computed from the real trained artifacts.</p>
+    <div class="tabs">
+      <button class="tab active" data-tab="pca">PCA · churn map</button>
+      <button class="tab" data-tab="svd">SVD · recommender space</button>
+      <button class="tab" data-tab="imp">Feature importance</button>
+      <button class="tab" data-tab="net">Co-authorship network</button>
+    </div>
+    <div class="plot-wrap">
+      <svg class="plot" id="plot" viewBox="0 0 720 420" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="plot-cap" id="plot-cap"></div>
   </div>
 
   <footer>
@@ -250,6 +280,8 @@ async function doPredict(){
     `<span>${pct}% churn probability</span>` +
     (d.churned ? `<span class="badge bad">AT RISK</span>`
                : `<span class="badge ok">ACTIVE</span>`);
+  lastProfile = payload;                 // drop it onto the PCA map
+  if(activeTab==="pca") renderTab();
 }
 
 // --- at-risk authors ----------------------------------------------------
@@ -281,6 +313,8 @@ async function doRecommend(author){
     box.innerHTML = `<div class="notice"><b>${d.author}</b> is not at risk (probability ${Math.round(d.churn_probability*100)}%). ${d.message}</div>`;
     return;
   }
+  lastRec = {author:d.author, ids:d.recommendations.map(p=>p.arxiv_id)};
+  if(activeTab==="svd") renderTab();
   const head = `<p class="desc" style="margin-bottom:14px">For <b style="color:var(--ink)">${d.author}</b> · churn probability <b style="color:var(--bad)">${Math.round(d.churn_probability*100)}%</b></p>`;
   box.innerHTML = head + d.recommendations.map(p=>{
     const id = p.arxiv_id.replace(/v\d+$/,"");
@@ -305,8 +339,137 @@ async function loadStats(){
   document.getElementById("s-risk").textContent = a.count;
 }
 
+// ====================== MODEL INSIGHTS (PCA / SVD / importance / network) ===
+let VIZ=null, activeTab="pca", lastProfile=null, lastRec=null;
+const C_BAD="#f87171", C_OK="#34d399", C_ACC="#6c8cff", C_PAPER="#fbbf24";
+const W=720, H=420, PAD=46;
+
+function mapper(pts){
+  const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+  const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
+  const sx=v=>PAD+( (v-x0)/((x1-x0)||1) )*(W-2*PAD);
+  const sy=v=>H-PAD-( (v-y0)/((y1-y0)||1) )*(H-2*PAD);   // flip y
+  return {sx,sy,x0,x1,y0,y1};
+}
+function axes(xlabel,ylabel){
+  return `<line x1="${PAD}" y1="${H-PAD}" x2="${W-PAD}" y2="${H-PAD}" stroke="#2c3568"/>
+    <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H-PAD}" stroke="#2c3568"/>
+    <text x="${W/2}" y="${H-12}" fill="#9aa3d4" font-size="12" text-anchor="middle">${xlabel}</text>
+    <text x="16" y="${H/2}" fill="#9aa3d4" font-size="12" text-anchor="middle" transform="rotate(-90 16 ${H/2})">${ylabel}</text>`;
+}
+function setLegend(items){
+  document.getElementById("legend").innerHTML = items.map(i=>
+    `<span><span class="dot" style="background:${i.c}"></span>${i.t}</span>`).join("");
+}
+
+function renderPCA(){
+  const p=VIZ.pca, m=mapper(p.points);
+  let s=axes(`PC1 (${Math.round(p.explained[0]*100)}% var)`,`PC2 (${Math.round(p.explained[1]*100)}% var)`);
+  p.points.forEach(d=>{
+    s+=`<circle cx="${m.sx(d.x).toFixed(1)}" cy="${m.sy(d.y).toFixed(1)}" r="4"
+        fill="${d.churn?C_BAD:C_OK}" fill-opacity="0.6"/>`;
+  });
+  if(lastProfile){
+    const pr=projectPCA(lastProfile);
+    const X=m.sx(pr.x), Y=m.sy(pr.y);
+    s+=`<circle cx="${X}" cy="${Y}" r="11" fill="none" stroke="${C_ACC}" stroke-width="2.5"/>
+        <circle cx="${X}" cy="${Y}" r="4" fill="${C_ACC}"/>
+        <text x="${X+14}" y="${Y+4}" fill="#eef1ff" font-size="12" font-weight="700">your profile</text>`;
+  }
+  document.getElementById("plot").innerHTML=s;
+  setLegend([{c:C_BAD,t:"churned"},{c:C_OK,t:"active"},{c:C_ACC,t:"your predicted profile"}]);
+  document.getElementById("plot-cap").innerHTML=
+    `Each dot is a researcher projected from 8 features to 2 components (these capture <b>${Math.round((p.explained[0]+p.explained[1])*100)}%</b> of the variance). Churned researchers (red) cluster toward the recency-driven side — visible separation means the features carry real signal. Move the sliders and hit <b>Predict</b> to drop your profile onto the map.`;
+}
+function projectPCA(byKey){
+  const p=VIZ.pca;
+  const v=p.feature_order.map((k,i)=>(byKey[k]-p.scaler_mean[i])/p.scaler_scale[i]-p.pca_mean[i]);
+  return {x:p.components[0].reduce((s,c,i)=>s+c*v[i],0),
+          y:p.components[1].reduce((s,c,i)=>s+c*v[i],0)};
+}
+
+function renderSVD(){
+  const sv=VIZ.svd;
+  const paperPts=Object.entries(sv.papers).map(([id,o])=>({id,...o}));
+  const all=sv.authors.concat(paperPts);
+  const m=mapper(all);
+  let s=axes("latent factor 1","latent factor 2");
+  sv.authors.forEach(d=>{
+    s+=`<circle cx="${m.sx(d.x).toFixed(1)}" cy="${m.sy(d.y).toFixed(1)}" r="3.2"
+        fill="${d.churn?C_BAD:C_OK}" fill-opacity="0.45"/>`;
+  });
+  paperPts.forEach(d=>{
+    s+=`<rect x="${(m.sx(d.x)-3).toFixed(1)}" y="${(m.sy(d.y)-3).toFixed(1)}" width="6" height="6"
+        transform="rotate(45 ${m.sx(d.x).toFixed(1)} ${m.sy(d.y).toFixed(1)})"
+        fill="${C_PAPER}" fill-opacity="0.7"/>`;
+  });
+  if(lastRec){
+    const a=sv.authors.find(x=>x.author===lastRec.author);
+    if(a){
+      const AX=m.sx(a.x), AY=m.sy(a.y);
+      (lastRec.ids||[]).forEach(id=>{
+        const pp=sv.papers[id]; if(!pp) return;
+        const PX=m.sx(pp.x), PY=m.sy(pp.y);
+        s+=`<line x1="${AX}" y1="${AY}" x2="${PX}" y2="${PY}" stroke="${C_PAPER}" stroke-width="1.5" stroke-opacity="0.8"/>
+            <rect x="${PX-4}" y="${PY-4}" width="8" height="8" transform="rotate(45 ${PX} ${PY})" fill="${C_PAPER}"/>`;
+      });
+      s+=`<circle cx="${AX}" cy="${AY}" r="11" fill="none" stroke="${C_ACC}" stroke-width="2.5"/>
+          <circle cx="${AX}" cy="${AY}" r="4.5" fill="${C_ACC}"/>
+          <text x="${AX+13}" y="${AY+4}" fill="#eef1ff" font-size="12" font-weight="700">${a.author}</text>`;
+    }
+  }
+  document.getElementById("plot").innerHTML=s;
+  setLegend([{c:C_BAD,t:"churned author"},{c:C_OK,t:"active author"},{c:C_PAPER,t:"candidate paper"},{c:C_ACC,t:"selected"}]);
+  document.getElementById("plot-cap").innerHTML=
+    `The recommender's latent space (truncated SVD, <b>${Math.round(sv.explained*100)}%</b> variance). Authors (circles) and recent papers (diamonds) are placed by research interest. Click a researcher in the “At-risk” list — the lines show the recommended papers as the nearest ones in this space, which is exactly how the engine picks them.`;
+}
+
+function renderImp(){
+  const imp=VIZ.importance, max=Math.max(...imp.map(d=>d.value));
+  const bw=W-2*PAD-150, top=30, rh=(H-top-30)/imp.length;
+  let s="";
+  imp.forEach((d,i)=>{
+    const y=top+i*rh, w=(d.value/max)*bw;
+    s+=`<text x="${PAD+146}" y="${y+rh/2+4}" fill="#eef1ff" font-size="12" text-anchor="end">${d.feature}</text>
+        <rect x="${PAD+150}" y="${y+4}" width="${w.toFixed(1)}" height="${rh-8}" rx="4" fill="${C_ACC}"/>
+        <text x="${PAD+156+w}" y="${y+rh/2+4}" fill="#9aa3d4" font-size="11">${(d.value*100).toFixed(1)}%</text>`;
+  });
+  document.getElementById("plot").innerHTML=s;
+  setLegend([{c:C_ACC,t:"RandomForest importance (share of total)"}]);
+  document.getElementById("plot-cap").innerHTML=
+    `How much each of the 8 served features drives the RandomForest. <b>${imp[0].feature}</b> dominates — recency is the strongest churn signal, confirming “better features beat better algorithms”.`;
+}
+
+function renderNet(){
+  const net=VIZ.network, m=mapper(net.nodes);
+  let s="";
+  net.edges.forEach(([i,j])=>{
+    const a=net.nodes[i], b=net.nodes[j];
+    s+=`<line x1="${m.sx(a.x).toFixed(1)}" y1="${m.sy(a.y).toFixed(1)}" x2="${m.sx(b.x).toFixed(1)}" y2="${m.sy(b.y).toFixed(1)}" stroke="#3a4488" stroke-opacity="0.35" stroke-width="0.7"/>`;
+  });
+  net.nodes.forEach(d=>{
+    const r=2.5+1.6*Math.sqrt(d.deg);
+    s+=`<circle cx="${m.sx(d.x).toFixed(1)}" cy="${m.sy(d.y).toFixed(1)}" r="${r.toFixed(1)}"
+        fill="${d.churn?C_BAD:C_OK}" fill-opacity="0.85" stroke="#0f1226" stroke-width="0.5"/>`;
+  });
+  document.getElementById("plot").innerHTML=s;
+  setLegend([{c:C_BAD,t:"churned"},{c:C_OK,t:"active"}]);
+  document.getElementById("plot-cap").innerHTML=
+    `Co-authorship graph: ${net.nodes.length} researchers, ${net.n_edges} collaboration edges (node size = number of co-authors). Isolated, low-degree nodes skew red — researchers without collaborators churn more, which is why network centralities improve the model and motivate collaboration-based retention.`;
+}
+
+const RENDER={pca:renderPCA, svd:renderSVD, imp:renderImp, net:renderNet};
+function renderTab(){ if(VIZ) RENDER[activeTab](); }
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
+  activeTab=b.dataset.tab;
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));
+  renderTab();
+});
+async function loadViz(){ VIZ=await (await fetch("/viz")).json(); renderTab(); }
+
 buildSliders();
 loadStats();
+loadViz();
 </script>
 </body>
 </html>

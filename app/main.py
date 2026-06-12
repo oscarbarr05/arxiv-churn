@@ -5,6 +5,7 @@ Both joblib bundles are loaded ONCE at startup, never per request.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -25,6 +26,7 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 MODEL = model_module.load_bundle()
 RECOMMENDER = rec_module.load_bundle()
+VIZ = json.loads((Path(__file__).resolve().parent / "viz.json").read_text("utf-8"))
 
 
 class ResearcherFeatures(BaseModel):
@@ -68,6 +70,12 @@ def home() -> FileResponse:
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/viz", include_in_schema=False)
+def viz() -> dict:
+    """Precomputed PCA / SVD / importance / network data for the dashboard."""
+    return VIZ
 
 
 @app.get("/features")

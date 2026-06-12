@@ -19,9 +19,13 @@ committed, so everything works straight from a clean clone.
 docker-compose up --build
 ```
 
-Then open **http://localhost:8000** for the **web dashboard** (predict with
-sliders, browse at-risk researchers, get paper recommendations). The technical
-interactive API docs stay at **http://localhost:8000/docs**.
+Then open **http://localhost:8000** for the **web dashboard**: predict with
+sliders, browse at-risk researchers, get paper recommendations, and explore a
+**Model insights** panel with four interactive views computed from the real
+artifacts — the **PCA churn map** (your predicted profile is projected live
+onto it), the **SVD recommender space** (shows why each paper is recommended),
+**RandomForest feature importance**, and the **co-authorship network**. The
+technical interactive API docs stay at **http://localhost:8000/docs**.
 
 ### Try it
 
@@ -126,5 +130,6 @@ arxiv-churn/
 ```bash
 python scripts/collect_data.py     # ~30 min (arXiv rate limit)
 python build_model.py              # features -> selection -> CV -> .pkl files
+python scripts/make_viz.py         # precompute dashboard plots -> app/viz.json
 python scripts/make_notebook.py    # regenerate + execute the notebook
 ```
