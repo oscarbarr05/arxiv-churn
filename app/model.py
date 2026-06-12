@@ -24,6 +24,12 @@ MODEL_PATH = Path(__file__).resolve().parent / "model.pkl"
 RANDOM_STATE = 42
 
 
+def variance_prune(X: pd.DataFrame, threshold: float = 0.0) -> list[str]:
+    """Filter step 0: drop (near-)constant features — they carry no signal
+    and break F-statistics downstream."""
+    return [c for c in X.columns if X[c].var() > threshold]
+
+
 def correlation_prune(X: pd.DataFrame, threshold: float = 0.9) -> list[str]:
     """Drop one feature of every pair with |corr| > threshold (filter step)."""
     corr = X.corr().abs()
@@ -78,12 +84,13 @@ def selection_scores(X: pd.DataFrame, y: pd.Series) -> pd.DataFrame:
 def consensus_selection(X: pd.DataFrame, y: pd.Series, keep: int = 8) -> list[str]:
     """Reproducible final feature set.
 
+    0. variance pruning removes constant features,
     1. correlation pruning (>0.9) removes redundant twins,
     2. a feature earns one vote per method that ranks it top-`keep`
        (ANOVA, DT, RF) or selects it (RFE),
     3. keep features with >= 2 votes, ordered by RF importance.
     """
-    kept_cols = correlation_prune(X)
+    kept_cols = correlation_prune(X[variance_prune(X)])
     Xp = X[kept_cols]
     table = selection_scores(Xp, y)
     votes = (

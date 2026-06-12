@@ -155,13 +155,17 @@ md("""## 4. Feature selection — all four methods
 3. **Embedded**: DecisionTree importances (max_depth=5)
 4. **Embedded**: RandomForest importances (n_estimators=100)""")
 
-code("""# --- 4.1 filter: variance check (near-zero variance = useless feature)
+code("""# --- 4.1 filter: variance threshold (constant features carry zero signal)
 variances = X.var().sort_values()
 print("lowest variances:")
-print(variances.head(4).round(4))""")
+print(variances.head(4).round(4))
+kept_v = M.variance_prune(X)
+const = [c for c in X.columns if c not in kept_v]
+print("dropped as constant:", const or "none")
+Xv = X[kept_v]""")
 
 code("""# --- 4.1 filter: correlation matrix + pruning at |r| > 0.9
-corr = X.corr()
+corr = Xv.corr()
 fig, ax = plt.subplots(figsize=(9, 7))
 im = ax.imshow(corr, cmap="coolwarm", vmin=-1, vmax=1)
 ax.set_xticks(range(len(corr))); ax.set_xticklabels(corr.columns, rotation=90)
@@ -169,10 +173,10 @@ ax.set_yticks(range(len(corr))); ax.set_yticklabels(corr.columns)
 fig.colorbar(im); ax.set_title("Feature correlation matrix")
 plt.tight_layout(); plt.show()
 
-kept = M.correlation_prune(X)
-dropped = [c for c in X.columns if c not in kept]
+kept = M.correlation_prune(Xv)
+dropped = [c for c in Xv.columns if c not in kept]
 print("dropped by correlation pruning (>0.9):", dropped or "none")
-Xp = X[kept]""")
+Xp = Xv[kept]""")
 
 code("""# --- 4.2-4.4: ANOVA + RFE + DecisionTree + RandomForest, one consolidated table
 table = M.selection_scores(Xp, y)
@@ -296,7 +300,7 @@ ax.axis("off"); plt.tight_layout(); plt.show()""")
 
 code("""# re-run ALL FOUR selection methods with network features included
 X_ext = df[F.FEATURE_COLUMNS + F.NETWORK_FEATURE_COLUMNS]
-kept_ext = M.correlation_prune(X_ext)
+kept_ext = M.correlation_prune(X_ext[M.variance_prune(X_ext)])
 table_ext = M.selection_scores(X_ext[kept_ext], y)
 votes_ext = ((table_ext.anova_rank <= 8).astype(int) + table_ext.rfe_selected.astype(int)
              + (table_ext.dt_rank <= 8).astype(int) + (table_ext.rf_rank <= 8).astype(int))
@@ -338,7 +342,7 @@ pca_pipe = Pipeline([("scale", StandardScaler()),
 results = pd.DataFrame({
     "A: selected original": run_cv(rf(), df[selected]),
     "B: PCA(3) components": run_cv(pca_pipe, X),
-    "C: original + network": run_cv(rf(), df[selected_ext]),
+    "C: original + network": run_cv(rf(), df[selected + F.NETWORK_FEATURE_COLUMNS]),
 }).T.round(3)
 results""")
 
