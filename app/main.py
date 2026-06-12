@@ -5,7 +5,10 @@ Both joblib bundles are loaded ONCE at startup, never per request.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 import model as model_module
@@ -17,6 +20,8 @@ app = FastAPI(
                 "and recommends recent papers to re-engage at-risk authors.",
     version="1.0.0",
 )
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 MODEL = model_module.load_bundle()
 RECOMMENDER = rec_module.load_bundle()
@@ -47,6 +52,12 @@ class ResearcherFeatures(BaseModel):
 class RecommendRequest(BaseModel):
     author: str
     top_n: int = Field(5, ge=1, le=20)
+
+
+@app.get("/", include_in_schema=False)
+def home() -> FileResponse:
+    """Friendly web dashboard (the technical Swagger UI stays at /docs)."""
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/health")

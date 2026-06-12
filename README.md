@@ -19,7 +19,9 @@ committed, so everything works straight from a clean clone.
 docker-compose up --build
 ```
 
-API live at **http://localhost:8000** (interactive docs: `/docs`).
+Then open **http://localhost:8000** for the **web dashboard** (predict with
+sliders, browse at-risk researchers, get paper recommendations). The technical
+interactive API docs stay at **http://localhost:8000/docs**.
 
 ### Try it
 

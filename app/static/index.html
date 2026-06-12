@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>arXiv Churn · Predicción de abandono de investigadores</title>
+<style>
+  :root{
+    --bg:#0f1226; --bg2:#161a3a; --card:#1b2046; --card2:#222a5c;
+    --ink:#eef1ff; --muted:#9aa3d4; --line:#2c3568;
+    --accent:#6c8cff; --accent2:#9b6cff;
+    --ok:#34d399; --warn:#fbbf24; --bad:#f87171;
+    --radius:16px; --shadow:0 10px 40px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%,#27306e 0%,transparent 60%),
+               radial-gradient(900px 500px at -10% 10%,#3a2168 0%,transparent 55%),
+               var(--bg);
+    color:var(--ink); line-height:1.5; min-height:100vh;
+  }
+  a{color:var(--accent)}
+  .wrap{max-width:1080px; margin:0 auto; padding:32px 20px 80px}
+  header.hero{
+    display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+    margin-bottom:8px;
+  }
+  .logo{
+    width:54px;height:54px;border-radius:14px;flex:none;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:grid;place-items:center;font-size:26px;box-shadow:var(--shadow);
+  }
+  h1{font-size:28px;margin:0;letter-spacing:-.5px}
+  .sub{color:var(--muted);margin:2px 0 0;font-size:15px}
+  .toplinks{margin-left:auto;display:flex;gap:10px}
+  .pill{
+    font-size:13px;padding:8px 14px;border-radius:999px;
+    border:1px solid var(--line);color:var(--muted);text-decoration:none;
+    background:rgba(255,255,255,.02);transition:.15s;
+  }
+  .pill:hover{color:var(--ink);border-color:var(--accent)}
+  .stats{display:flex;gap:14px;flex-wrap:wrap;margin:22px 0 28px}
+  .stat{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:14px 18px;flex:1;min-width:140px;
+  }
+  .stat .v{font-size:24px;font-weight:700}
+  .stat .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media(max-width:840px){.grid{grid-template-columns:1fr}}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:22px;box-shadow:var(--shadow);
+  }
+  .card h2{margin:0 0 4px;font-size:19px;display:flex;align-items:center;gap:9px}
+  .card .desc{color:var(--muted);font-size:13.5px;margin:0 0 18px}
+  .presets{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .preset{
+    flex:1;min-width:120px;cursor:pointer;border:1px solid var(--line);
+    background:var(--card2);color:var(--ink);border-radius:10px;padding:9px;
+    font-size:13px;transition:.15s;
+  }
+  .preset:hover{border-color:var(--accent)}
+  .preset.active{border-color:var(--accent);background:rgba(108,140,255,.15)}
+  .slider-row{margin-bottom:13px}
+  .slider-row label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+  .slider-row label b{color:var(--accent)}
+  .slider-row .hint{color:var(--muted);font-weight:400;font-size:11.5px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:5px}
+  .btn{
+    width:100%;border:none;border-radius:11px;padding:13px;cursor:pointer;
+    font-size:15px;font-weight:600;color:#fff;margin-top:6px;transition:.15s;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+  }
+  .btn:hover{filter:brightness(1.08)}
+  .btn.sec{background:var(--card2);border:1px solid var(--line)}
+  .result{margin-top:18px;display:none}
+  .gauge{
+    height:26px;border-radius:999px;background:var(--card2);overflow:hidden;
+    border:1px solid var(--line);position:relative;
+  }
+  .gauge .fill{height:100%;width:0;transition:width .7s cubic-bezier(.2,.8,.2,1);border-radius:999px}
+  .verdict{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:17px;font-weight:700}
+  .badge{font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px}
+  .badge.ok{background:rgba(52,211,153,.15);color:var(--ok)}
+  .badge.bad{background:rgba(248,113,113,.15);color:var(--bad)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  tr.clickable{cursor:pointer;transition:.12s}
+  tr.clickable:hover{background:rgba(108,140,255,.08)}
+  .prob-chip{font-weight:700;padding:2px 9px;border-radius:8px;font-size:13px}
+  .scroll{max-height:330px;overflow:auto;margin:-6px -6px 0;padding:6px}
+  .paper{
+    border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:11px;
+    background:var(--card2);
+  }
+  .paper a{font-weight:600;text-decoration:none;font-size:14.5px}
+  .paper a:hover{text-decoration:underline}
+  .paper .meta{color:var(--muted);font-size:12px;margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
+  .sim{color:var(--accent)}
+  .cats{font-family:monospace;font-size:11px}
+  .empty{color:var(--muted);font-size:14px;text-align:center;padding:24px}
+  .loader{color:var(--muted);font-size:14px;text-align:center;padding:18px}
+  .notice{
+    background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);
+    color:#fde68a;border-radius:11px;padding:14px;font-size:14px;
+  }
+  .full{grid-column:1/-1}
+  footer{color:var(--muted);font-size:12.5px;text-align:center;margin-top:34px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="logo">📉</div>
+    <div>
+      <h1>arXiv Researcher Churn</h1>
+      <p class="sub">Predecir qué investigadores dejarán de publicar — y recomendarles papers para reengancharlos</p>
+    </div>
+    <div class="toplinks">
+      <a class="pill" href="/docs" target="_blank">API · Swagger</a>
+      <a class="pill" href="https://arxiv.org" target="_blank">arXiv ↗</a>
+    </div>
+  </header>
+
+  <section class="stats" id="stats">
+    <div class="stat"><div class="v" id="s-feats">—</div><div class="k">Features del modelo</div></div>
+    <div class="stat"><div class="v" id="s-f1">—</div><div class="k">F1 (CV 5-fold)</div></div>
+    <div class="stat"><div class="v" id="s-acc">—</div><div class="k">Accuracy</div></div>
+    <div class="stat"><div class="v" id="s-risk">—</div><div class="k">En riesgo de abandono</div></div>
+  </section>
+
+  <div class="grid">
+
+    <!-- ============ PREDICT ============ -->
+    <div class="card">
+      <h2>🔮 Predecir abandono</h2>
+      <p class="desc">Ajustá el perfil de un investigador (medido en la fecha de corte) y estimá su probabilidad de dejar de publicar.</p>
+
+      <div class="presets">
+        <button class="preset" data-preset="active">🟢 Investigador activo</button>
+        <button class="preset" data-preset="risk">🔴 Investigador en riesgo</button>
+      </div>
+
+      <div id="sliders"></div>
+
+      <button class="btn" onclick="doPredict()">Predecir</button>
+
+      <div class="result" id="predict-result">
+        <div class="gauge"><div class="fill" id="gauge-fill"></div></div>
+        <div class="verdict" id="verdict"></div>
+      </div>
+    </div>
+
+    <!-- ============ AT-RISK LIST ============ -->
+    <div class="card">
+      <h2>⚠️ Investigadores en riesgo</h2>
+      <p class="desc">Los autores con mayor probabilidad de abandono. Hacé clic en uno para ver papers recomendados.</p>
+      <button class="btn sec" onclick="loadAuthors()">Cargar lista</button>
+      <div class="scroll" id="authors-box" style="margin-top:14px">
+        <div class="empty">Pulsá «Cargar lista» para ver los investigadores en riesgo.</div>
+      </div>
+    </div>
+
+    <!-- ============ RECOMMEND ============ -->
+    <div class="card full">
+      <h2>📚 Recomendaciones de reenganche</h2>
+      <p class="desc">Papers recientes de autores activos, afines a los intereses del investigador seleccionado. Solo se recomiendan a investigadores en riesgo (probabilidad ≥ 0.5).</p>
+      <div id="rec-box"><div class="empty">Seleccioná un investigador de la lista de la derecha.</div></div>
+    </div>
+
+  </div>
+
+  <footer>
+    Proyecto final · Introduction to Data Science · UPTP — modelo RandomForest sobre features temporales de arXiv (cs.CL), corte 2024-06-30.
+  </footer>
+</div>
+
+<script>
+// --- feature sliders: the 8 the model actually uses ---------------------
+const FEATURES = [
+  {k:"recency_days_at_cutoff", label:"Días desde el último paper", min:0, max:1500, step:10, hint:"recencia — la señal #1 de abandono"},
+  {k:"recent_share_2y", label:"% producción en los últimos 2 años", min:0, max:1, step:0.05, hint:"momentum reciente"},
+  {k:"papers_per_year", label:"Papers por año", min:0, max:10, step:0.1, hint:"frecuencia de publicación"},
+  {k:"avg_gap_days", label:"Brecha promedio entre papers (días)", min:0, max:1000, step:10, hint:"ritmo habitual"},
+  {k:"n_categories", label:"Cantidad de categorías", min:1, max:10, step:1, hint:"amplitud temática"},
+  {k:"career_years", label:"Años de carrera", min:0.5, max:25, step:0.5, hint:"antigüedad"},
+  {k:"categories_per_paper", label:"Categorías por paper", min:0, max:3, step:0.1, hint:"diversidad por trabajo"},
+  {k:"solo_ratio", label:"% de papers en solitario", min:0, max:1, step:0.05, hint:"aislamiento colaborativo"},
+];
+// extra fields the API's schema requires but the model ignores
+const EXTRA = {first_author_ratio:0.5, avg_coauthors:2, max_gap_days:365,
+               is_solo_researcher:0, has_long_break:0, is_multidisciplinary:0};
+const PRESETS = {
+  active:{recency_days_at_cutoff:60, recent_share_2y:0.8, papers_per_year:4,
+          avg_gap_days:120, n_categories:4, career_years:8,
+          categories_per_paper:1.4, solo_ratio:0.1},
+  risk:{recency_days_at_cutoff:820, recent_share_2y:0.1, papers_per_year:0.7,
+        avg_gap_days:520, n_categories:1, career_years:5,
+        categories_per_paper:0.4, solo_ratio:0.6},
+};
+
+const fmtDays = v => v>=365 ? (v/365).toFixed(1)+" años" : Math.round(v)+" días";
+
+function buildSliders(){
+  const box = document.getElementById("sliders");
+  box.innerHTML = FEATURES.map(f=>`
+    <div class="slider-row">
+      <label>
+        <span>${f.label} <span class="hint">· ${f.hint}</span></span>
+        <b id="val-${f.k}"></b>
+      </label>
+      <input type="range" id="in-${f.k}" min="${f.min}" max="${f.max}" step="${f.step}"
+             oninput="updateVal('${f.k}')">
+    </div>`).join("");
+  applyPreset("risk");
+}
+function updateVal(k){
+  const v = parseFloat(document.getElementById("in-"+k).value);
+  const f = FEATURES.find(x=>x.k===k);
+  let disp = v;
+  if(k.includes("days")) disp = fmtDays(v);
+  else if(f.max<=1) disp = Math.round(v*100)+"%";
+  else if(f.step<1) disp = v.toFixed(1);
+  document.getElementById("val-"+k).textContent = disp;
+}
+function applyPreset(name){
+  const p = PRESETS[name];
+  for(const k in p){ document.getElementById("in-"+k).value = p[k]; updateVal(k); }
+  document.querySelectorAll(".preset").forEach(b=>
+    b.classList.toggle("active", b.dataset.preset===name));
+}
+document.querySelectorAll(".preset").forEach(b=>
+  b.onclick=()=>applyPreset(b.dataset.preset));
+
+async function doPredict(){
+  const payload = {...EXTRA};
+  FEATURES.forEach(f=> payload[f.k] = parseFloat(document.getElementById("in-"+f.k).value));
+  const r = await fetch("/predict",{method:"POST",headers:{"Content-Type":"application/json"},
+            body:JSON.stringify(payload)});
+  const d = await r.json();
+  const pct = Math.round(d.churn_probability*100);
+  const res = document.getElementById("predict-result");
+  res.style.display="block";
+  const fill = document.getElementById("gauge-fill");
+  const color = pct>=50 ? "var(--bad)" : pct>=30 ? "var(--warn)" : "var(--ok)";
+  fill.style.background = color;
+  setTimeout(()=>{ fill.style.width = pct+"%"; }, 30);
+  document.getElementById("verdict").innerHTML =
+    `<span>${pct}% de probabilidad de abandono</span>` +
+    (d.churned ? `<span class="badge bad">EN RIESGO</span>`
+               : `<span class="badge ok">ACTIVO</span>`);
+}
+
+// --- at-risk authors ----------------------------------------------------
+async function loadAuthors(){
+  const box = document.getElementById("authors-box");
+  box.innerHTML = `<div class="loader">Cargando…</div>`;
+  const r = await fetch("/authors?at_risk_only=true");
+  const d = await r.json();
+  if(!d.authors.length){ box.innerHTML=`<div class="empty">Sin investigadores en riesgo.</div>`; return; }
+  box.innerHTML = `<table><thead><tr><th>Investigador</th><th>Prob. abandono</th></tr></thead><tbody>`
+    + d.authors.map(a=>{
+        const pct=Math.round(a.churn_probability*100);
+        const col = pct>=80?"var(--bad)":pct>=60?"var(--warn)":"var(--accent)";
+        return `<tr class="clickable" onclick="doRecommend('${a.author.replace(/'/g,"\\'")}')">
+          <td>${a.author}</td>
+          <td><span class="prob-chip" style="background:${col}22;color:${col}">${pct}%</span></td>
+        </tr>`;
+      }).join("") + `</tbody></table>`;
+}
+
+// --- recommendations ----------------------------------------------------
+async function doRecommend(author){
+  const box = document.getElementById("rec-box");
+  box.innerHTML = `<div class="loader">Buscando papers para <b>${author}</b>…</div>`;
+  const r = await fetch("/recommend",{method:"POST",headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({author, top_n:5})});
+  const d = await r.json();
+  if(d.at_risk===false){
+    box.innerHTML = `<div class="notice"><b>${d.author}</b> no está en riesgo (probabilidad ${Math.round(d.churn_probability*100)}%). ${d.message}</div>`;
+    return;
+  }
+  const head = `<p class="desc" style="margin-bottom:14px">Para <b style="color:var(--ink)">${d.author}</b> · probabilidad de abandono <b style="color:var(--bad)">${Math.round(d.churn_probability*100)}%</b></p>`;
+  box.innerHTML = head + d.recommendations.map(p=>{
+    const id = p.arxiv_id.replace(/v\d+$/,"");
+    return `<div class="paper">
+      <a href="https://arxiv.org/abs/${id}" target="_blank">${p.title}</a>
+      <div class="meta">
+        <span>📅 ${p.published}</span>
+        <span class="cats">🏷️ ${p.categories}</span>
+        <span class="sim">↔ similitud ${(p.similarity*100).toFixed(0)}%</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// --- header stats -------------------------------------------------------
+async function loadStats(){
+  const f = await (await fetch("/features")).json();
+  document.getElementById("s-feats").textContent = f.model_features.length;
+  document.getElementById("s-f1").textContent = f.cv_metrics.f1.toFixed(2);
+  document.getElementById("s-acc").textContent = Math.round(f.cv_metrics.accuracy*100)+"%";
+  const a = await (await fetch("/authors?at_risk_only=true")).json();
+  document.getElementById("s-risk").textContent = a.count;
+}
+
+buildSliders();
+loadStats();
+</script>
+</body>
+</html>
