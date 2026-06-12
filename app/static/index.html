@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>arXiv Churn · Predicción de abandono de investigadores</title>
+<title>arXiv Churn · Researcher attrition predictor</title>
 <style>
   :root{
     --bg:#0f1226; --bg2:#161a3a; --card:#1b2046; --card2:#222a5c;
@@ -118,7 +118,7 @@
     <div class="logo">📉</div>
     <div>
       <h1>arXiv Researcher Churn</h1>
-      <p class="sub">Predecir qué investigadores dejarán de publicar — y recomendarles papers para reengancharlos</p>
+      <p class="sub">Predict which researchers will stop publishing — and recommend papers to re-engage them</p>
     </div>
     <div class="toplinks">
       <a class="pill" href="/docs" target="_blank">API · Swagger</a>
@@ -127,27 +127,27 @@
   </header>
 
   <section class="stats" id="stats">
-    <div class="stat"><div class="v" id="s-feats">—</div><div class="k">Features del modelo</div></div>
-    <div class="stat"><div class="v" id="s-f1">—</div><div class="k">F1 (CV 5-fold)</div></div>
+    <div class="stat"><div class="v" id="s-feats">—</div><div class="k">Model features</div></div>
+    <div class="stat"><div class="v" id="s-f1">—</div><div class="k">F1 (5-fold CV)</div></div>
     <div class="stat"><div class="v" id="s-acc">—</div><div class="k">Accuracy</div></div>
-    <div class="stat"><div class="v" id="s-risk">—</div><div class="k">En riesgo de abandono</div></div>
+    <div class="stat"><div class="v" id="s-risk">—</div><div class="k">At risk of churn</div></div>
   </section>
 
   <div class="grid">
 
     <!-- ============ PREDICT ============ -->
     <div class="card">
-      <h2>🔮 Predecir abandono</h2>
-      <p class="desc">Ajustá el perfil de un investigador (medido en la fecha de corte) y estimá su probabilidad de dejar de publicar.</p>
+      <h2>🔮 Predict churn</h2>
+      <p class="desc">Tune a researcher's profile (measured at the cutoff date) and estimate their probability of leaving arXiv.</p>
 
       <div class="presets">
-        <button class="preset" data-preset="active">🟢 Investigador activo</button>
-        <button class="preset" data-preset="risk">🔴 Investigador en riesgo</button>
+        <button class="preset" data-preset="active">🟢 Active researcher</button>
+        <button class="preset" data-preset="risk">🔴 At-risk researcher</button>
       </div>
 
       <div id="sliders"></div>
 
-      <button class="btn" onclick="doPredict()">Predecir</button>
+      <button class="btn" onclick="doPredict()">Predict</button>
 
       <div class="result" id="predict-result">
         <div class="gauge"><div class="fill" id="gauge-fill"></div></div>
@@ -157,43 +157,40 @@
 
     <!-- ============ AT-RISK LIST ============ -->
     <div class="card">
-      <h2>⚠️ Investigadores en riesgo</h2>
-      <p class="desc">Los autores con mayor probabilidad de abandono. Hacé clic en uno para ver papers recomendados.</p>
-      <button class="btn sec" onclick="loadAuthors()">Cargar lista</button>
+      <h2>⚠️ At-risk researchers</h2>
+      <p class="desc">The authors most likely to churn. Click one to see recommended papers.</p>
+      <button class="btn sec" onclick="loadAuthors()">Load list</button>
       <div class="scroll" id="authors-box" style="margin-top:14px">
-        <div class="empty">Pulsá «Cargar lista» para ver los investigadores en riesgo.</div>
+        <div class="empty">Press “Load list” to see the at-risk researchers.</div>
       </div>
     </div>
 
     <!-- ============ RECOMMEND ============ -->
     <div class="card full">
-      <h2>📚 Recomendaciones de reenganche</h2>
-      <p class="desc">Papers recientes de autores activos, afines a los intereses del investigador seleccionado. Solo se recomiendan a investigadores en riesgo (probabilidad ≥ 0.5).</p>
-      <div id="rec-box"><div class="empty">Seleccioná un investigador de la lista de la derecha.</div></div>
+      <h2>📚 Re-engagement recommendations</h2>
+      <p class="desc">Recent papers by active authors, aligned with the selected researcher's interests. Only at-risk researchers (probability ≥ 0.5) receive recommendations.</p>
+      <div id="rec-box"><div class="empty">Select a researcher from the list on the right.</div></div>
     </div>
 
   </div>
 
   <footer>
-    Proyecto final · Introduction to Data Science · UPTP — modelo RandomForest sobre features temporales de arXiv (cs.CL), corte 2024-06-30.
+    Final project · Introduction to Data Science · UPTP — RandomForest on temporal arXiv features (cs.CL), cutoff 2024-06-30.
   </footer>
 </div>
 
 <script>
-// --- feature sliders: the 8 the model actually uses ---------------------
+// --- feature sliders: the 8 features the model actually uses -------------
 const FEATURES = [
-  {k:"recency_days_at_cutoff", label:"Días desde el último paper", min:0, max:1500, step:10, hint:"recencia — la señal #1 de abandono"},
-  {k:"recent_share_2y", label:"% producción en los últimos 2 años", min:0, max:1, step:0.05, hint:"momentum reciente"},
-  {k:"papers_per_year", label:"Papers por año", min:0, max:10, step:0.1, hint:"frecuencia de publicación"},
-  {k:"avg_gap_days", label:"Brecha promedio entre papers (días)", min:0, max:1000, step:10, hint:"ritmo habitual"},
-  {k:"n_categories", label:"Cantidad de categorías", min:1, max:10, step:1, hint:"amplitud temática"},
-  {k:"career_years", label:"Años de carrera", min:0.5, max:25, step:0.5, hint:"antigüedad"},
-  {k:"categories_per_paper", label:"Categorías por paper", min:0, max:3, step:0.1, hint:"diversidad por trabajo"},
-  {k:"solo_ratio", label:"% de papers en solitario", min:0, max:1, step:0.05, hint:"aislamiento colaborativo"},
+  {k:"recency_days_at_cutoff", label:"Days since last paper", min:0, max:1500, step:10, hint:"recency — the #1 churn signal"},
+  {k:"recent_share_2y", label:"% output in the last 2 years", min:0, max:1, step:0.05, hint:"recent momentum"},
+  {k:"papers_per_year", label:"Papers per year", min:0, max:10, step:0.1, hint:"publication frequency"},
+  {k:"avg_gap_days", label:"Average gap between papers (days)", min:0, max:1000, step:10, hint:"habitual rhythm"},
+  {k:"n_categories", label:"Number of categories", min:1, max:10, step:1, hint:"topical breadth"},
+  {k:"career_years", label:"Career length (years)", min:0.5, max:25, step:0.5, hint:"seniority"},
+  {k:"categories_per_paper", label:"Categories per paper", min:0, max:3, step:0.1, hint:"diversity per work"},
+  {k:"solo_ratio", label:"% of solo-authored papers", min:0, max:1, step:0.05, hint:"collaboration isolation"},
 ];
-// extra fields the API's schema requires but the model ignores
-const EXTRA = {first_author_ratio:0.5, avg_coauthors:2, max_gap_days:365,
-               is_solo_researcher:0, has_long_break:0, is_multidisciplinary:0};
 const PRESETS = {
   active:{recency_days_at_cutoff:60, recent_share_2y:0.8, papers_per_year:4,
           avg_gap_days:120, n_categories:4, career_years:8,
@@ -203,7 +200,7 @@ const PRESETS = {
         categories_per_paper:0.4, solo_ratio:0.6},
 };
 
-const fmtDays = v => v>=365 ? (v/365).toFixed(1)+" años" : Math.round(v)+" días";
+const fmtDays = v => v>=365 ? (v/365).toFixed(1)+" yr" : Math.round(v)+" days";
 
 function buildSliders(){
   const box = document.getElementById("sliders");
@@ -237,7 +234,7 @@ document.querySelectorAll(".preset").forEach(b=>
   b.onclick=()=>applyPreset(b.dataset.preset));
 
 async function doPredict(){
-  const payload = {...EXTRA};
+  const payload = {};
   FEATURES.forEach(f=> payload[f.k] = parseFloat(document.getElementById("in-"+f.k).value));
   const r = await fetch("/predict",{method:"POST",headers:{"Content-Type":"application/json"},
             body:JSON.stringify(payload)});
@@ -250,19 +247,19 @@ async function doPredict(){
   fill.style.background = color;
   setTimeout(()=>{ fill.style.width = pct+"%"; }, 30);
   document.getElementById("verdict").innerHTML =
-    `<span>${pct}% de probabilidad de abandono</span>` +
-    (d.churned ? `<span class="badge bad">EN RIESGO</span>`
-               : `<span class="badge ok">ACTIVO</span>`);
+    `<span>${pct}% churn probability</span>` +
+    (d.churned ? `<span class="badge bad">AT RISK</span>`
+               : `<span class="badge ok">ACTIVE</span>`);
 }
 
 // --- at-risk authors ----------------------------------------------------
 async function loadAuthors(){
   const box = document.getElementById("authors-box");
-  box.innerHTML = `<div class="loader">Cargando…</div>`;
+  box.innerHTML = `<div class="loader">Loading…</div>`;
   const r = await fetch("/authors?at_risk_only=true");
   const d = await r.json();
-  if(!d.authors.length){ box.innerHTML=`<div class="empty">Sin investigadores en riesgo.</div>`; return; }
-  box.innerHTML = `<table><thead><tr><th>Investigador</th><th>Prob. abandono</th></tr></thead><tbody>`
+  if(!d.authors.length){ box.innerHTML=`<div class="empty">No at-risk researchers.</div>`; return; }
+  box.innerHTML = `<table><thead><tr><th>Researcher</th><th>Churn prob.</th></tr></thead><tbody>`
     + d.authors.map(a=>{
         const pct=Math.round(a.churn_probability*100);
         const col = pct>=80?"var(--bad)":pct>=60?"var(--warn)":"var(--accent)";
@@ -276,15 +273,15 @@ async function loadAuthors(){
 // --- recommendations ----------------------------------------------------
 async function doRecommend(author){
   const box = document.getElementById("rec-box");
-  box.innerHTML = `<div class="loader">Buscando papers para <b>${author}</b>…</div>`;
+  box.innerHTML = `<div class="loader">Finding papers for <b>${author}</b>…</div>`;
   const r = await fetch("/recommend",{method:"POST",headers:{"Content-Type":"application/json"},
             body:JSON.stringify({author, top_n:5})});
   const d = await r.json();
   if(d.at_risk===false){
-    box.innerHTML = `<div class="notice"><b>${d.author}</b> no está en riesgo (probabilidad ${Math.round(d.churn_probability*100)}%). ${d.message}</div>`;
+    box.innerHTML = `<div class="notice"><b>${d.author}</b> is not at risk (probability ${Math.round(d.churn_probability*100)}%). ${d.message}</div>`;
     return;
   }
-  const head = `<p class="desc" style="margin-bottom:14px">Para <b style="color:var(--ink)">${d.author}</b> · probabilidad de abandono <b style="color:var(--bad)">${Math.round(d.churn_probability*100)}%</b></p>`;
+  const head = `<p class="desc" style="margin-bottom:14px">For <b style="color:var(--ink)">${d.author}</b> · churn probability <b style="color:var(--bad)">${Math.round(d.churn_probability*100)}%</b></p>`;
   box.innerHTML = head + d.recommendations.map(p=>{
     const id = p.arxiv_id.replace(/v\d+$/,"");
     return `<div class="paper">
@@ -292,7 +289,7 @@ async function doRecommend(author){
       <div class="meta">
         <span>📅 ${p.published}</span>
         <span class="cats">🏷️ ${p.categories}</span>
-        <span class="sim">↔ similitud ${(p.similarity*100).toFixed(0)}%</span>
+        <span class="sim">↔ similarity ${(p.similarity*100).toFixed(0)}%</span>
       </div>
     </div>`;
   }).join("");

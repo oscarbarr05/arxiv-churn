@@ -30,23 +30,28 @@ RECOMMENDER = rec_module.load_bundle()
 class ResearcherFeatures(BaseModel):
     """Engineered features at the cutoff date (see README for definitions).
 
-    The model uses the subset reported by GET /features; extra fields are
-    accepted and ignored so clients can always send the full profile.
+    The 8 fields the trained model consumes (reported by GET /features) are
+    required; the remaining engineered features are accepted as optional
+    extras so a client can always POST a full researcher profile, but they
+    are ignored by the current model. This keeps the required contract aligned
+    with /features while staying robust to a future re-selection.
     """
+    # --- required: the 8 consensus-selected features the model uses ---
     recency_days_at_cutoff: float = Field(..., ge=0)
     papers_per_year: float = Field(..., ge=0)
     avg_gap_days: float = Field(..., ge=0)
     recent_share_2y: float = Field(..., ge=0, le=1)
     solo_ratio: float = Field(..., ge=0, le=1)
-    first_author_ratio: float = Field(..., ge=0, le=1)
     categories_per_paper: float = Field(..., ge=0)
-    avg_coauthors: float = Field(..., ge=0)
-    max_gap_days: float = Field(..., ge=0)
     career_years: float = Field(..., gt=0)
     n_categories: float = Field(..., ge=1)
-    is_solo_researcher: int = Field(..., ge=0, le=1)
-    has_long_break: int = Field(..., ge=0, le=1)
-    is_multidisciplinary: int = Field(..., ge=0, le=1)
+    # --- optional: accepted for completeness, not used by the current model ---
+    first_author_ratio: float = Field(0.5, ge=0, le=1)
+    avg_coauthors: float = Field(2.0, ge=0)
+    max_gap_days: float = Field(365.0, ge=0)
+    is_solo_researcher: int = Field(0, ge=0, le=1)
+    has_long_break: int = Field(0, ge=0, le=1)
+    is_multidisciplinary: int = Field(0, ge=0, le=1)
 
 
 class RecommendRequest(BaseModel):

@@ -35,11 +35,10 @@ curl http://localhost:8000/features
 # predict: a dormant, isolated researcher profile
 curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d '{
   "recency_days_at_cutoff": 600, "papers_per_year": 0.8, "avg_gap_days": 400,
-  "recent_share_2y": 0.1, "solo_ratio": 0.6, "first_author_ratio": 0.7,
-  "categories_per_paper": 0.5, "avg_coauthors": 0.8, "max_gap_days": 900,
-  "career_years": 6, "n_categories": 2, "is_solo_researcher": 1,
-  "has_long_break": 1, "is_multidisciplinary": 0}'
+  "recent_share_2y": 0.1, "solo_ratio": 0.6, "categories_per_paper": 0.5,
+  "career_years": 6, "n_categories": 2}'
 # -> {"churned": true, "churn_probability": ...}
+# (only the 8 model features are required; see GET /features)
 
 # list researchers at churn risk (valid names for /recommend)
 curl "http://localhost:8000/authors?at_risk_only=true"
