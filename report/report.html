@@ -4,196 +4,272 @@
 <meta charset="UTF-8">
 <title>arXiv Researcher Churn — Final Report</title>
 <style>
-  @page { size: A4; margin: 15mm 15mm 14mm 15mm; }
-  * { box-sizing: border-box; }
-  body{ font-family:"Georgia","Times New Roman",serif; color:#1c1c28;
-        font-size:9.9pt; line-height:1.42; margin:0; }
+  @page { size: A4; margin: 16mm 16mm 14mm 16mm; }
+  :root{
+    --ink:#221d1a; --maroon:#6f1d2b; --maroon2:#8a2433; --gold:#a9802f;
+    --line:#ddd2c6; --paper:#ffffff; --ivory:#fbf6ec; --rose:#f7eee9;
+  }
+  *{ box-sizing:border-box; }
+  body{ font-family:"Georgia","Times New Roman",serif; color:var(--ink);
+        font-size:10.3pt; line-height:1.5; margin:0; }
   .sans{ font-family:"Segoe UI",Helvetica,Arial,sans-serif; }
-  h1{ font-family:"Segoe UI",Helvetica,Arial,sans-serif; font-size:21pt;
-      margin:0; color:#13235e; letter-spacing:-.4px; }
-  .rule{ height:3px; background:linear-gradient(90deg,#13235e 0%,#c79a2e 70%,transparent 100%);
-         margin:6px 0 10px; border-radius:2px; }
-  h2{ font-family:"Segoe UI",Helvetica,Arial,sans-serif; font-size:12pt;
-      margin:15px 0 5px; color:#13235e; border-bottom:1px solid #cfd6ea;
-      padding-bottom:2px; }
+  .hdr{ border-top:3px solid var(--maroon); padding-top:9px; }
+  h1{ font-size:20pt; margin:0; color:var(--maroon); font-weight:700;
+      letter-spacing:.2px; }
+  .tagline{ color:#5a5048; font-size:9.6pt; font-style:italic; margin:3px 0 0; }
+  .byline{ font-family:"Segoe UI",sans-serif; font-size:8.4pt; color:#6a5f55;
+           margin:5px 0 0; }
+  .byline a{ color:var(--maroon2); }
+  h2{ font-size:12pt; margin:15px 0 5px; color:var(--maroon);
+      font-variant:small-caps; letter-spacing:.6px; font-weight:700;
+      border-bottom:1.5px solid var(--gold); padding-bottom:2px; }
   p{ margin:5px 0; text-align:justify; }
-  a{ color:#2a55c8; text-decoration:none; }
-  code{ font-family:Consolas,monospace; font-size:8.6pt; background:#eef1f8;
-        padding:0 4px; border-radius:3px; color:#23314f; }
-  ul{ margin:4px 0; padding-left:17px; }
-  li{ margin:2px 0; }
-  table{ border-collapse:collapse; width:100%; margin:6px 0; font-size:8.6pt;
+  a{ color:#9a3324; text-decoration:none; }
+  code{ font-family:Consolas,monospace; font-size:8.4pt; background:#f1ece4;
+        padding:0 4px; border-radius:3px; color:#5a2230; }
+  ul{ margin:4px 0; padding-left:16px; } li{ margin:2px 0; }
+  table{ border-collapse:collapse; width:100%; margin:7px 0; font-size:8.9pt;
          font-family:"Segoe UI",Helvetica,Arial,sans-serif; }
-  th,td{ border:1px solid #cfd6ea; padding:3.5px 6px; text-align:left; vertical-align:top; }
-  th{ background:#13235e; color:#fff; font-weight:600; }
-  tr:nth-child(even) td{ background:#f5f7fc; }
-  .sub{ color:#555; font-size:9.4pt; font-style:italic; }
-  .meta{ color:#666; font-size:8.6pt; font-family:"Segoe UI",sans-serif; }
-  .repo{ display:inline-block; margin:6px 0; padding:6px 13px; background:#13235e;
-         color:#fff !important; border-radius:7px; font-weight:600; font-size:9.2pt;
-         font-family:"Segoe UI",sans-serif; }
-  .key{ background:#fdf6e3; border-left:4px solid #c79a2e; border-radius:4px;
-        padding:7px 11px; margin:8px 0; font-size:9.4pt; }
-  .key b{ color:#8a6212; }
-  .ok{ background:#edf6f0; border-left:4px solid #2e8b57; border-radius:4px;
-       padding:7px 11px; margin:8px 0; font-size:9.4pt; }
+  th,td{ border:1px solid var(--line); padding:3.5px 6px; text-align:left; vertical-align:top; }
+  th{ background:var(--maroon); color:#fff; font-weight:600; }
+  tr:nth-child(even) td{ background:var(--rose); }
+  .key{ background:var(--ivory); border-left:4px solid var(--gold); border-radius:4px;
+        padding:7px 11px; margin:8px 0; font-size:9.3pt; }
+  .key b{ color:#7a5a16; }
+  .res{ background:var(--rose); border-left:4px solid var(--maroon); border-radius:4px;
+        padding:7px 11px; margin:8px 0; font-size:9.3pt; }
+  .res b{ color:var(--maroon); }
   .grid2{ display:flex; gap:12px; align-items:flex-start; }
-  .fig{ break-inside:avoid; text-align:center; margin:8px 0; }
-  .fig img{ max-width:100%; border:1px solid #dde3f3; border-radius:5px; }
-  .fig .cap{ font-size:8.3pt; color:#444; margin-top:3px; text-align:left;
-             font-family:"Segoe UI",sans-serif; line-height:1.35; }
-  .fig .cap b{ color:#13235e; }
   .col{ flex:1; }
-  .small{ font-size:8.6pt; color:#555; font-family:"Segoe UI",sans-serif; }
-  .tag{ font-family:"Segoe UI",sans-serif; font-size:8.4pt; color:#13235e;
-        background:#e9edf8; border-radius:4px; padding:1px 6px; }
+  .fig{ break-inside:avoid; text-align:center; margin:7px 0; }
+  .fig img{ max-width:100%; border:1px solid var(--line); border-radius:5px; }
+  .cap{ font-size:8.6pt; color:#4a423b; margin-top:3px; text-align:left;
+        font-family:"Segoe UI",sans-serif; line-height:1.38; }
+  .cap b{ color:var(--maroon); }
+  .small{ font-size:8.4pt; color:#5a5048; font-family:"Segoe UI",sans-serif; }
+  .tag{ font-family:"Segoe UI",sans-serif; font-size:8.2pt; color:#fff;
+        background:var(--maroon2); border-radius:4px; padding:1px 6px; }
+  .flow{ width:100%; margin:6px 0 2px; }
 </style>
 </head>
 <body>
 
-<h1 class="sans">arXiv Researcher Churn Predictor</h1>
-<div class="rule"></div>
-<p class="sub" style="margin-top:0">Predict who stops publishing · explain why through
-feature selection, PCA/SVD &amp; co-authorship structure · act with paper recommendations.</p>
-<p class="meta">Final Report — Introduction to Data Science, UPTP (Units 8–9) · Oscar Barrios ·
+<div class="hdr">
+<h1>Predicting Researcher Churn on arXiv</h1>
+<p class="tagline">A production-grade pipeline that predicts who stops publishing,
+explains why through feature selection, PCA/SVD and co-authorship structure, and acts
+on it with personalized paper recommendations.</p>
+<p class="byline">Final Report · Introduction to Data Science (Units 8–9) · Universidad
+Politécnica Taiwan–Paraguay · <b>Oscar Barrios</b> · Repository:
 <a href="https://github.com/oscarbarr05/arxiv-churn">github.com/oscarbarr05/arxiv-churn</a></p>
+</div>
 
-<div class="ok"><b>Headline.</b> 295 cs.CL researchers, churn rate <b>18.6%</b>,
-leakage-free temporal label. Consensus of four selection methods → 8 features.
-RandomForest 5-fold CV <b>F1 0.65 / accuracy 88%</b>, rising to <b>F1 0.68</b> with
-co-authorship centralities. SVD recommender (84% variance) gated at churn prob ≥ 0.5.
-Fully Dockerized: <code>docker-compose up --build</code> → API + interactive dashboard,
-no API key, no manual steps.</div>
+<div class="res"><b>Abstract.</b> From 295 arXiv <code>cs.CL</code> researchers (churn rate
+<b>18.6%</b>) the system learns a leakage-free churn model. A consensus of four feature-
+selection methods reduces 14 engineered features to 8; a RandomForest reaches
+<b>F1&nbsp;0.65 / accuracy&nbsp;88%</b> under 5-fold cross-validation, rising to
+<b>F1&nbsp;0.68</b> once co-authorship centralities are added. An SVD collaborative
+filter (84% explained variance) recommends re-engagement papers, gated at churn
+probability ≥ 0.5. The whole system is reproducible with a single command
+(<code>docker-compose up --build</code>) — no API key, no manual steps. <b>All code,
+data, the executable notebook and an interactive dashboard are in the GitHub
+repository.</b></div>
 
-<h2>1 · Problem &amp; data</h2>
-<p>Like Netflix/Spotify retention systems, the pipeline does three jobs: <b>predict</b>
-churn, <b>explain</b> it, and <b>act</b> on it. The entity is an author in arXiv's
-<code>cs.CL</code> category; data comes from the public arXiv API (no key). A two-stage
-scraper first samples a frame (100 papers/quarter, 2014–2025 ≈ 4 800 papers — sampling
-<i>all</i> years avoids a recency-biased cohort), then fetches each discovered
-researcher's <b>full</b> history (20 333 author-paper rows), rate-limited at 3 s/request
-with defensive parsing and pagination.</p>
-<div class="key"><b>Churn label (leakage-free).</b> A researcher has churned if they
-submitted <b>no paper after the cutoff 2024-06-30</b> (≈2 yr silence). Features are
-computed <i>only</i> from pre-cutoff papers and the label <i>only</i> from post-cutoff
-activity — so recency is a legal predictor instead of leaking into the label. Classes
-are balanced (18.6% churn, above the 10% danger zone); all models also use
-<code>class_weight="balanced"</code>.</p></div>
+<h2>1 · Problem, data and workflow</h2>
+<p>Mirroring industrial retention systems (Netflix, Spotify, LinkedIn), the pipeline has
+three goals — <b>predict</b> churn, <b>explain</b> it, and <b>act</b> on it. The entity is
+an author publishing in arXiv's <code>cs.CL</code> category; all data is drawn from the
+public arXiv API (no key, no login). A two-stage scraper first builds an unbiased
+<i>sampling frame</i> (100 papers per quarter, 2014–2025 ≈ 4 800 papers — sampling across
+<i>all</i> years prevents a recency-biased cohort with no churners), then fetches each
+discovered researcher's <b>complete</b> publication history (20 333 author-paper rows),
+rate-limited at 3 s/request with defensive parsing and pagination.</p>
+
+<svg class="flow" viewBox="0 0 720 86" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#a9802f"/>
+    </marker>
+  </defs>
+  <!-- 5 stages -->
+  <!-- boxes: x positions 6,150,294,438,582 width 132 -->
+  <g>
+    <rect x="6"   y="16" width="132" height="54" rx="6" fill="#fbf6ec" stroke="#6f1d2b" stroke-width="1.3"/>
+    <rect x="150" y="16" width="132" height="54" rx="6" fill="#fbf6ec" stroke="#6f1d2b" stroke-width="1.3"/>
+    <rect x="294" y="16" width="132" height="54" rx="6" fill="#fbf6ec" stroke="#6f1d2b" stroke-width="1.3"/>
+    <rect x="438" y="16" width="132" height="54" rx="6" fill="#fbf6ec" stroke="#6f1d2b" stroke-width="1.3"/>
+    <rect x="582" y="16" width="132" height="54" rx="6" fill="#fbf6ec" stroke="#6f1d2b" stroke-width="1.3"/>
+  </g>
+  <g fill="#6f1d2b" font-size="9.5" font-weight="700" text-anchor="middle">
+    <text x="72"  y="33">1 · Collect</text>
+    <text x="216" y="33">2 · Engineer</text>
+    <text x="360" y="33">3 · Select &amp; reduce</text>
+    <text x="504" y="33">4 · Model</text>
+    <text x="648" y="33">5 · Serve</text>
+  </g>
+  <g fill="#4a423b" font-size="7.2" text-anchor="middle">
+    <text x="72"  y="46">arXiv API · 2-stage</text>
+    <text x="72"  y="56">4,800 → 20,333 rows</text>
+    <text x="216" y="46">14 features ·</text>
+    <text x="216" y="56">4 families</text>
+    <text x="360" y="46">4 methods → 8 ·</text>
+    <text x="360" y="56">PCA · SVD · network</text>
+    <text x="504" y="46">RandomForest ·</text>
+    <text x="504" y="56">5-fold CV</text>
+    <text x="648" y="46">FastAPI /predict</text>
+    <text x="648" y="56">/recommend · Docker</text>
+  </g>
+  <g stroke="#a9802f" stroke-width="1.6" marker-end="url(#ar)">
+    <line x1="138" y1="43" x2="149" y2="43"/>
+    <line x1="282" y1="43" x2="293" y2="43"/>
+    <line x1="426" y1="43" x2="437" y2="43"/>
+    <line x1="570" y1="43" x2="581" y2="43"/>
+  </g>
+</svg>
+<div class="cap" style="text-align:center"><b>Figure 1.</b> End-to-end workflow — every
+stage is implemented as a single-responsibility module in the repository.</div>
+
+<div class="key"><b>Churn label — and why it is leakage-free.</b> A researcher has
+<b>churned</b> if they submitted <b>no paper after the cutoff 2024-06-30</b> (≈ 2 years of
+silence). Features are computed <i>only</i> from pre-cutoff papers and the label <i>only</i>
+from post-cutoff activity, so recency is a legitimate predictor instead of leaking into the
+target — exactly how production churn systems frame the task. The 18.6% positive rate sits
+safely above the 10% danger zone; eligibility requires ≥ 3 pre-cutoff papers and ≥ 1 year of
+history, and every model also uses <code>class_weight="balanced"</code>.</div>
 
 <h2>2 · Feature engineering — “better features beat better algorithms”</h2>
-<p>No raw API field is used directly. <b>14 features</b> span four families covering
-recency, frequency and magnitude (full definitions in the repo):</p>
+<p>No raw API field is used directly. Fourteen features span four families, deliberately
+covering recency, frequency and magnitude (complete definitions and code in the repository):</p>
 <table>
-<tr><th>Family</th><th>Features</th><th>Churn rationale</th></tr>
-<tr><td><b>Time</b> (recency/frequency)</td><td>recency_days_at_cutoff, recent_share_2y, papers_per_year, avg_gap_days, max_gap_days</td><td>Silence and decaying cadence are the earliest, strongest churn signals.</td></tr>
-<tr><td><b>Ratio</b></td><td>solo_ratio, first_author_ratio, categories_per_paper</td><td>Isolation and student-stage profiles raise attrition.</td></tr>
-<tr><td><b>Aggregation</b></td><td>avg_coauthors, career_years, n_categories</td><td>Team size and seniority proxy support and stability.</td></tr>
-<tr><td><b>Binary</b></td><td>is_solo_researcher, has_long_break, is_multidisciplinary</td><td>Past breaks and isolation flag relapse risk.</td></tr>
+<tr><th>Family</th><th>Features</th><th>Why it should predict churn</th></tr>
+<tr><td><b>Time</b> · recency/frequency</td><td>recency_days_at_cutoff, recent_share_2y, papers_per_year, avg_gap_days, max_gap_days</td><td>Growing silence and a decaying publication cadence are the earliest, strongest signals of departure.</td></tr>
+<tr><td><b>Ratio</b></td><td>solo_ratio, first_author_ratio, categories_per_paper</td><td>Collaborative isolation and student-stage profiles carry higher attrition.</td></tr>
+<tr><td><b>Aggregation</b></td><td>avg_coauthors, career_years, n_categories</td><td>Team size and seniority proxy the support and stability that retain authors.</td></tr>
+<tr><td><b>Binary</b></td><td>is_solo_researcher, has_long_break, is_multidisciplinary</td><td>Prior long breaks and isolation flag relapse risk.</td></tr>
 </table>
 
-<h2>3 · Feature selection — four methods + consensus</h2>
-<p>Filter (variance + correlation pruning |r|&gt;0.9 + ANOVA), Wrapper (RFE/logistic,
-top-5), and Embedded (DecisionTree <code>max_depth=5</code>, RandomForest
-<code>n_estimators=100</code>). A feature is kept on ≥2 of 4 votes; the rule is shared
-by notebook and API so they never drift.</p>
+<h2>3 · Feature selection — four methods and a consensus</h2>
+<p>Four complementary methods are run and consolidated: <b>Filter</b> (variance threshold,
+correlation pruning at |r|&nbsp;&gt;&nbsp;0.9, ANOVA F-test), <b>Wrapper</b> (RFE over
+logistic regression, top 5), and two <b>Embedded</b> rankings (DecisionTree
+<code>max_depth=5</code>, RandomForest <code>n_estimators=100</code>). A feature survives on
+≥ 2 of 4 votes; the same rule ships in <code>model.py</code>, so the notebook analysis and
+the served model can never diverge.</p>
 <table>
-<tr><th>Feature</th><th>ANOVA</th><th>RFE</th><th>DT</th><th>RF</th><th>Keep</th></tr>
+<tr><th>Feature</th><th>ANOVA rank</th><th>RFE</th><th>DT rank</th><th>RF rank</th><th>Kept</th></tr>
 <tr><td>recency_days_at_cutoff</td><td>1</td><td>✓</td><td>1</td><td>1</td><td><b>✓</b></td></tr>
 <tr><td>recent_share_2y</td><td>2</td><td>✓</td><td>7</td><td>2</td><td><b>✓</b></td></tr>
 <tr><td>avg_gap_days</td><td>5</td><td>✓</td><td>3</td><td>3</td><td><b>✓</b></td></tr>
 <tr><td>n_categories</td><td>3</td><td>✓</td><td>4</td><td>4</td><td><b>✓</b></td></tr>
 <tr><td>papers_per_year</td><td>10</td><td>✓</td><td>2</td><td>5</td><td><b>✓</b></td></tr>
-<tr><td>career_years · categories_per_paper · solo_ratio</td><td>12·6·8</td><td>—</td><td>5·10·6</td><td>6·8·11</td><td>✓</td></tr>
-<tr><td>is_multidisciplinary · is_solo_researcher</td><td>4·—</td><td>—</td><td>—</td><td>13·—</td><td>drop</td></tr>
+<tr><td>career_years · categories_per_paper · solo_ratio</td><td>12 · 6 · 8</td><td>—</td><td>5 · 10 · 6</td><td>6 · 8 · 11</td><td>✓</td></tr>
+<tr><td>is_multidisciplinary · is_solo_researcher</td><td>4 · —</td><td>—</td><td>— · —</td><td>13 · —</td><td>drop</td></tr>
 </table>
-<div class="key"><b>Disagreements are the insight.</b> <code>papers_per_year</code> is
-near-last for ANOVA (which scores features in isolation) yet top-5 for RFE and both
-trees — its signal is <i>interaction-only</i>. <code>is_multidisciplinary</code> is the
-reverse (high ANOVA, last RF) — redundant given <code>n_categories</code>. When one tree
-and the forest disagree, trust the average of 100 trees. <b>Final 8 features</b>
-validated by 5-fold CV: accuracy 0.885, precision 0.746, recall 0.582, F1 0.652.</div>
+<div class="key"><b>The disagreements are the insight.</b> <code>papers_per_year</code> ranks
+near-last under ANOVA (which scores features in isolation) yet is selected by RFE and ranked
+top-5 by both trees — its signal is <i>interaction-only</i>, precisely what univariate filters
+miss. <code>is_multidisciplinary</code> is the mirror case (high ANOVA, last in RF): redundant
+once <code>n_categories</code> is present. When a single tree and the forest disagree, the
+average of 100 trees is the more reliable referee. The <b>final 8 features</b> are validated by
+5-fold stratified CV: accuracy 0.885, precision 0.746, recall 0.582, F1 0.652.</div>
 
-<h2>4 · Dimensionality reduction — PCA &amp; SVD</h2>
-<p>Selection <i>picks</i> features; PCA/SVD <i>create</i> compressed ones (PCA on scaled
-features ≈ SVD of the covariance matrix).</p>
+<h2>4 · Dimensionality reduction — PCA and SVD</h2>
+<p>Whereas selection <i>picks</i> existing features, PCA and SVD <i>create</i> compressed ones
+(PCA on standardized features is equivalent to the SVD of their covariance matrix).</p>
 <div class="grid2">
   <div class="fig col"><img src="fig_elbow.png" alt="PCA elbow">
-    <div class="cap"><b>Fig A · PCA elbow.</b> Cumulative explained variance vs number of
-    components: 2 components capture ≈58%, 3 ≈70%. The curve justifies keeping few
-    components for visualization.</div></div>
+    <div class="cap"><b>Figure 2 · PCA elbow.</b> Cumulative explained variance against the
+    number of components: two components retain ≈ 58%, three ≈ 70%. The knee motivates keeping
+    only a few components for visualization.</div></div>
   <div class="fig col"><img src="fig_pca_scatter.png" alt="PCA scatter">
-    <div class="cap"><b>Fig B · PCA churn map.</b> The 295 researchers projected to 2D,
-    colored by churn. Red (churned) separates from green (active) along PC1 (recency) —
-    visible separation is the proof the engineered features carry real signal.</div></div>
+    <div class="cap"><b>Figure 3 · PCA churn map.</b> The 295 researchers projected to two
+    components, colored by churn. Churned authors (red) separate from active ones (green) along
+    PC1 (the recency axis) — visible separation is direct evidence the features carry signal.</div></div>
 </div>
-<div class="fig"><img src="fig_svd.png" alt="SVD" style="max-width:85%">
-  <div class="cap"><b>Fig C · SVD of the researcher×category matrix</b>
-  (<code>scipy.sparse.linalg.svds</code>, k=12, 84% variance). <i>Left:</i> scree — the
-  first factor alone holds ~70% of the structure. <i>Right:</i> authors (circles, by
-  churn) and candidate papers (gold) in the recommender's latent space; proximity =
-  shared research interest, which is exactly how recommendations are chosen.</div></div>
-<div class="key"><b>PCA components as model inputs underperform.</b> Training on 3 PCA
-components costs <b>0.115 F1</b> (0.537 vs 0.652) and drops recall to 0.473: PCA
-compresses for variance, not churn discrimination. It earns its place as
-<i>explanation</i> (Figs A–B), not as the production feature set.</div>
+<div class="fig"><img src="fig_svd.png" alt="SVD" style="max-width:96%">
+  <div class="cap"><b>Figure 4 · SVD of the researcher × category matrix</b>
+  (<code>scipy.sparse.linalg.svds</code>, k = 12, 84% variance). <i>Left:</i> scree plot — the
+  leading factor alone captures ≈ 70% of the structure. <i>Right:</i> authors (circles, by churn)
+  and candidate papers (gold diamonds) embedded in the recommender's latent space, where
+  proximity encodes shared research interest and drives the recommendations.</div></div>
+<div class="key"><b>PCA components are weaker model inputs.</b> Training the classifier on three
+PCA components costs <b>0.115 F1</b> (0.537 vs 0.652) and lowers recall to 0.473: PCA compresses
+for variance, not for churn discrimination. Its value is <i>explanatory</i> (Figures 2–3), not
+as the production feature set.</div>
 
 <h2>5 · Network analysis as feature enrichment</h2>
-<p>A co-authorship graph (<b>networkx</b>; edge = shared pre-cutoff paper) yields
-<b>degree, betweenness and PageRank</b> centralities, added as features and re-run
-through all four selection methods.</p>
+<p>A co-authorship graph is built with <b>networkx</b> (an edge links two researchers who share a
+pre-cutoff paper). <b>Degree, betweenness and PageRank</b> centralities become new features, and
+all four selection methods are re-run with them included.</p>
 <div class="grid2">
-  <div class="fig col" style="flex:1.15"><img src="fig_network.png" alt="network">
-    <div class="cap"><b>Fig D · Co-authorship network.</b> 295 researchers, 417 edges
-    (node size = degree). Sparse, low-degree nodes on the rim skew red: isolated
-    researchers churn more — collaboration is retention.</div></div>
+  <div class="fig col" style="flex:1.12"><img src="fig_network.png" alt="network">
+    <div class="cap"><b>Figure 5 · Co-authorship network.</b> 295 researchers and 417
+    collaboration edges (node size = degree). Sparse, low-degree nodes on the periphery skew red:
+    isolated researchers churn more — collaboration is, in effect, retention.</div></div>
   <div class="fig col"><img src="fig_importance.png" alt="importance">
-    <div class="cap"><b>Fig E · RandomForest importance.</b> Recency (33%) and recent-output
-    share (19%) dominate the model — the quantitative echo of the four selection methods
-    and of the unit's motto.</div></div>
+    <div class="cap"><b>Figure 6 · RandomForest importance.</b> Recency (33%) and recent-output
+    share (19%) dominate the served model — the quantitative echo of the four selection methods.</div></div>
 </div>
-<div class="key"><b>Effect.</b> No single centrality wins the consensus vote alone (their
-signal emerges jointly with temporal features), yet together they lift F1 from 0.652 to
-<b>0.678</b> and recall to <b>0.618</b>.</div>
+<div class="res"><b>Effect on the model.</b> No individual centrality wins the consensus vote
+alone — their predictive signal emerges <i>jointly</i> with the temporal features — yet together
+they raise F1 from 0.652 to <b>0.678</b> and recall from 0.582 to <b>0.618</b>.</div>
 
 <h2>6 · Model comparison — three setups (5-fold stratified CV)</h2>
 <table>
 <tr><th>Setup</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1</th></tr>
-<tr><td>A — selected original features <span class="tag">served by API</span></td><td>0.885</td><td>0.746</td><td>0.582</td><td>0.652</td></tr>
+<tr><td>A — selected original features <span class="tag">served by the API</span></td><td>0.885</td><td>0.746</td><td>0.582</td><td>0.652</td></tr>
 <tr><td>B — PCA (3 components)</td><td>0.858</td><td>0.671</td><td>0.473</td><td>0.537</td></tr>
-<tr><td>C — original + network centralities</td><td><b>0.892</b></td><td><b>0.759</b></td><td><b>0.618</b></td><td><b>0.678</b></td></tr>
+<tr><td>C — original features + network centralities</td><td><b>0.892</b></td><td><b>0.759</b></td><td><b>0.618</b></td><td><b>0.678</b></td></tr>
 </table>
-<p>The API serves <b>A</b>, not the slightly stronger C: every input of A is computable
-from one researcher's public record, whereas C needs graph centralities recomputed per
-request. C is the offline “analyst's model” — a documented portability trade-off.</p>
+<p>The API serves <b>setup A</b> rather than the marginally stronger C: every input of A is
+computable from a single researcher's public record, whereas C would require recomputing graph
+centralities on each request, coupling inference to a full-dataset refresh. Setup C is therefore
+the offline “analyst's model” — a deliberate, documented portability trade-off.</p>
 
-<h2>7 · Acting on the prediction — recommendation, ethics, PM view</h2>
-<p><b>Recommendation.</b> The researcher×category matrix is factorized with truncated SVD;
-<code>POST /recommend</code> returns the most cosine-similar <b>recent papers by active
-authors</b> — but <b>only when churn probability ≥ 0.5</b> (engaged users get a “not at
-risk” reply). Re-engagement budget belongs on the at-risk segment.</p>
-<p><b>Ethics.</b> A churn score is a probability, not a verdict: interventions are designed
-to be harmless on false positives (a relevant-papers digest), and the model must never feed
-hiring/funding decisions — leaving arXiv ≠ leaving science. The label is an honest proxy
-(silence), surfaced by <code>/features</code>; author names are string-matched, so homonyms
-are a disclosed limitation.</p>
-<p><b>PM reflection.</b> As a product manager I would run this as one predict → explain →
-act loop: predict nightly to produce a <i>ranked re-engagement budget</i>; let the
-feature-selection table <i>route the channel</i> (recency-risk → content nudges,
-isolation-risk → collaboration features); and treat acting as an A/B experiment that
-measures <i>incremental</i> retention and feeds the threshold back. The transferable
-lesson: <b>churn is rarely sudden — cadence decays first</b>, so watching the derivative of
-engagement lets you act while there is still something to save.</p>
+<h2>7 · Serving and recommendation</h2>
+<p>The final RandomForest (<code>n_estimators=300</code>, <code>class_weight="balanced"</code>) is
+persisted with <code>joblib</code> and <b>loaded once at start-up</b>; <code>main.py</code> stays
+thin, holding only endpoints. The recommender factorizes the researcher × category matrix with
+truncated SVD and returns the most cosine-similar <b>recent papers by still-active authors</b> —
+crucially, only for at-risk researchers.</p>
+<table>
+<tr><th>Endpoint</th><th>Purpose</th></tr>
+<tr><td><code>POST /predict</code></td><td>Churn prediction → <code>{churned, churn_probability}</code> (8 required features).</td></tr>
+<tr><td><code>POST /recommend</code></td><td>Top-N re-engagement papers — <b>only if churn probability ≥ 0.5</b>; otherwise a “not at risk” message.</td></tr>
+<tr><td><code>GET /features</code> · <code>/authors</code> · <code>/health</code></td><td>Self-documentation, valid author names, and a liveness check.</td></tr>
+</table>
+<div class="key"><b>Example.</b> <code>POST /predict</code> with a dormant profile
+(<code>recency_days_at_cutoff=600, recent_share_2y=0.1, papers_per_year=0.8…</code>) returns
+<code>{"churned": true, "churn_probability": 0.58}</code>; sending that author to
+<code>/recommend</code> yields ranked recent papers, while an active author instead receives the
+“not at risk” reply — the business rule in action.</div>
 
-<div class="key"><b>Everything not shown here is in the repository:</b> the full
-8-step pipeline code, the run-from-clone instructions, the top-to-bottom notebook
-(<code>notebooks/eda_and_selection.ipynb</code>), the complete feature definitions, the
-README and an interactive dashboard (live PCA 2D/3D, SVD space, importance and network).
-<br><a href="https://github.com/oscarbarr05/arxiv-churn">▶ github.com/oscarbarr05/arxiv-churn</a>
-&nbsp;·&nbsp; run <code>docker-compose up --build</code> → <code>localhost:8000</code>.</div>
+<h2>8 · Ethics and product reflection</h2>
+<p><b>Ethics.</b> A churn score is a probability, not a verdict. Interventions are designed to be
+harmless under false positives (a relevant-papers digest), and the model must never feed
+hiring or funding decisions — leaving arXiv is not leaving science. The label is an honest proxy
+(<i>silence</i>), surfaced through <code>/features</code>, and authors are matched by name, so
+homonyms remain a disclosed limitation.</p>
+<p><b>Product reflection.</b> As a product manager I would run this as one <i>predict → explain →
+act</i> loop: score nightly to produce a ranked re-engagement budget; let the feature-selection
+table route the channel (recency-risk → content nudges, isolation-risk → collaboration features);
+and treat acting as an A/B experiment that measures <i>incremental</i> retention and feeds the
+threshold back. The transferable lesson is that <b>churn is rarely sudden — cadence decays
+first</b>, so monitoring the derivative of engagement allows action while there is still something
+to save.</p>
 
-<p class="small">Stack: Python 3.11 · FastAPI · scikit-learn · pandas · numpy · scipy ·
-networkx · matplotlib · joblib. Limitations: arXiv silence is a proxy for leaving research;
-no ORCID disambiguation; single category (cs.CL); centralities are community-relative.</p>
+<div class="res"><b>All work is on GitHub.</b> The complete eight-step pipeline (reusable scraper,
+feature engineering, the four selection methods, the trained model and Docker setup), the
+top-to-bottom notebook <code>notebooks/eda_and_selection.ipynb</code>, the README, and an
+interactive dashboard (live PCA 2D/3D, SVD space, feature importance and the co-authorship
+network) are all in the repository and run from a clean clone with one command.
+<br>▶ <a href="https://github.com/oscarbarr05/arxiv-churn"><b>github.com/oscarbarr05/arxiv-churn</b></a>
+&nbsp;—&nbsp; <code>docker-compose up --build</code> → API and dashboard at <code>localhost:8000</code>.</div>
+
+<p class="small"><b>Stack:</b> Python 3.11 · FastAPI · scikit-learn · pandas · numpy · scipy ·
+networkx · matplotlib · joblib. &nbsp;<b>Limitations:</b> arXiv silence is a proxy for leaving
+research (venue migration can resemble churn); no ORCID disambiguation; a single category
+(cs.CL); graph centralities are community-relative rather than global.</p>
 
 </body>
 </html>
