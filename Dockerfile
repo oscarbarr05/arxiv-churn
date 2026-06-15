@@ -3,8 +3,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# runtime-only deps (no matplotlib); robust to slow/flaky networks:
+# long read timeout + many retries + prefer prebuilt wheels
+COPY requirements-docker.txt .
+RUN pip install --no-cache-dir --timeout=120 --retries=10 --prefer-binary \
+    -r requirements-docker.txt
 
 COPY app/ .
 

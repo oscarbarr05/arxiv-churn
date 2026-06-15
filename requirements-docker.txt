@@ -1,0 +1,14 @@
+# Runtime-only dependencies for the Docker image (the served FastAPI app).
+# matplotlib is intentionally omitted: it is only used by the notebook /
+# scripts, never by app/. Dropping it makes the image build faster and far
+# more robust on slow connections. The full set (incl. matplotlib) lives in
+# requirements.txt for notebook reproducibility.
+fastapi==0.115.6
+uvicorn==0.34.0
+pydantic==2.10.4
+scikit-learn==1.6.0
+pandas==2.2.3
+numpy==2.2.1
+scipy==1.15.0
+networkx==3.4.2
+joblib==1.4.2
