@@ -10,6 +10,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import model as model_module
@@ -65,6 +66,10 @@ class RecommendRequest(BaseModel):
 def home() -> FileResponse:
     """Friendly web dashboard (the technical Swagger UI stays at /docs)."""
     return FileResponse(STATIC_DIR / "index.html")
+
+
+# vendored assets (Plotly.js) — served locally so the dashboard works offline
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/health")

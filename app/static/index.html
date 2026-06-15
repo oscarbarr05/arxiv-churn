@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>arXiv Churn · Researcher attrition predictor</title>
+<script src="/static/plotly.min.js"></script>
 <style>
   :root{
     --bg:#0f1226; --bg2:#161a3a; --card:#1b2046; --card2:#222a5c;
@@ -197,10 +198,14 @@
       <button class="tab" data-tab="imp">Feature importance</button>
       <button class="tab" data-tab="net">Co-authorship network</button>
     </div>
-    <div class="plot-wrap">
-      <svg class="plot" id="plot" viewBox="0 0 720 420" preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="pca-controls" style="display:flex;gap:8px;margin-bottom:12px">
+      <span style="color:var(--muted);font-size:13px;align-self:center">View:</span>
+      <button class="tab dim active" data-dim="2">2 components (2D)</button>
+      <button class="tab dim" data-dim="3">3 components (3D)</button>
     </div>
-    <div class="legend" id="legend"></div>
+    <div class="plot-wrap">
+      <div id="plot" style="width:100%;height:460px"></div>
+    </div>
     <div class="plot-cap" id="plot-cap"></div>
   </div>
 
@@ -339,130 +344,157 @@ async function loadStats(){
   document.getElementById("s-risk").textContent = a.count;
 }
 
-// ====================== MODEL INSIGHTS (PCA / SVD / importance / network) ===
-let VIZ=null, activeTab="pca", lastProfile=null, lastRec=null;
+// ====================== MODEL INSIGHTS (Plotly: PCA / SVD / importance / net) =
+let VIZ=null, activeTab="pca", lastProfile=null, lastRec=null, pcaDim=2;
 const C_BAD="#f87171", C_OK="#34d399", C_ACC="#6c8cff", C_PAPER="#fbbf24";
-const W=720, H=420, PAD=46;
+const CFG={responsive:true, displaylogo:false,
+  modeBarButtonsToRemove:["select2d","lasso2d","toggleSpikelines"]};
+const pct=v=>Math.round(v*100)+"%";
+const cap=html=>document.getElementById("plot-cap").innerHTML=html;
+const AXBASE={gridcolor:"#2c3568",zerolinecolor:"#2c3568",color:"#9aa3d4"};
 
-function mapper(pts){
-  const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
-  const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
-  const sx=v=>PAD+( (v-x0)/((x1-x0)||1) )*(W-2*PAD);
-  const sy=v=>H-PAD-( (v-y0)/((y1-y0)||1) )*(H-2*PAD);   // flip y
-  return {sx,sy,x0,x1,y0,y1};
-}
-function axes(xlabel,ylabel){
-  return `<line x1="${PAD}" y1="${H-PAD}" x2="${W-PAD}" y2="${H-PAD}" stroke="#2c3568"/>
-    <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H-PAD}" stroke="#2c3568"/>
-    <text x="${W/2}" y="${H-12}" fill="#9aa3d4" font-size="12" text-anchor="middle">${xlabel}</text>
-    <text x="16" y="${H/2}" fill="#9aa3d4" font-size="12" text-anchor="middle" transform="rotate(-90 16 ${H/2})">${ylabel}</text>`;
-}
-function setLegend(items){
-  document.getElementById("legend").innerHTML = items.map(i=>
-    `<span><span class="dot" style="background:${i.c}"></span>${i.t}</span>`).join("");
+function layout2d(xt,yt,extra){return Object.assign({
+  paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+  font:{color:"#9aa3d4",size:12}, margin:{l:58,r:20,t:10,b:50},
+  xaxis:Object.assign({title:xt},AXBASE), yaxis:Object.assign({title:yt},AXBASE),
+  legend:{orientation:"h",y:1.12,x:0}, hovermode:"closest"
+}, extra||{});}
+function scene3d(xt,yt,zt){const a=t=>Object.assign({title:t,showbackground:true,
+  backgroundcolor:"rgba(20,24,55,0.4)"},AXBASE);
+  return {paper_bgcolor:"rgba(0,0,0,0)",font:{color:"#9aa3d4",size:11},
+    margin:{l:0,r:0,t:0,b:0},legend:{orientation:"h",y:1.0,x:0},
+    scene:{xaxis:a(xt),yaxis:a(yt),zaxis:a(zt)}};}
+
+function projectPCA(byKey,nd){
+  const p=VIZ.pca;
+  const v=p.feature_order.map((k,i)=>(byKey[k]-p.scaler_mean[i])/p.scaler_scale[i]-p.pca_mean[i]);
+  const pc=i=>p.components[i].reduce((s,c,j)=>s+c*v[j],0);
+  return nd===3?[pc(0),pc(1),pc(2)]:[pc(0),pc(1)];
 }
 
 function renderPCA(){
-  const p=VIZ.pca, m=mapper(p.points);
-  let s=axes(`PC1 (${Math.round(p.explained[0]*100)}% var)`,`PC2 (${Math.round(p.explained[1]*100)}% var)`);
-  p.points.forEach(d=>{
-    s+=`<circle cx="${m.sx(d.x).toFixed(1)}" cy="${m.sy(d.y).toFixed(1)}" r="4"
-        fill="${d.churn?C_BAD:C_OK}" fill-opacity="0.6"/>`;
-  });
+  document.getElementById("pca-controls").style.display="flex";
+  const p=VIZ.pca, is3=pcaDim===3;
+  const ch=p.points.filter(d=>d.churn), ac=p.points.filter(d=>!d.churn);
+  const mk=(arr,color,name)=>Object.assign({
+    type:is3?"scatter3d":"scatter", mode:"markers", name,
+    x:arr.map(d=>d.x), y:arr.map(d=>d.y),
+    text:arr.map(d=>`${d.author}<br>churn ${pct(d.prob)}`), hoverinfo:"text",
+    marker:{size:is3?3.5:8,color,opacity:0.65}
+  }, is3?{z:arr.map(d=>d.z)}:{});
+  const traces=[mk(ac,C_OK,"active"),mk(ch,C_BAD,"churned")];
   if(lastProfile){
-    const pr=projectPCA(lastProfile);
-    const X=m.sx(pr.x), Y=m.sy(pr.y);
-    s+=`<circle cx="${X}" cy="${Y}" r="11" fill="none" stroke="${C_ACC}" stroke-width="2.5"/>
-        <circle cx="${X}" cy="${Y}" r="4" fill="${C_ACC}"/>
-        <text x="${X+14}" y="${Y+4}" fill="#eef1ff" font-size="12" font-weight="700">your profile</text>`;
+    const c=projectPCA(lastProfile,pcaDim);
+    traces.push(Object.assign({type:is3?"scatter3d":"scatter",mode:"markers",
+      name:"your profile",x:[c[0]],y:[c[1]],hoverinfo:"name",
+      marker:{size:is3?7:18,color:C_ACC,symbol:is3?"diamond":"star",
+        line:{color:"#fff",width:2}}}, is3?{z:[c[2]]}:{}));
   }
-  document.getElementById("plot").innerHTML=s;
-  setLegend([{c:C_BAD,t:"churned"},{c:C_OK,t:"active"},{c:C_ACC,t:"your predicted profile"}]);
-  document.getElementById("plot-cap").innerHTML=
-    `Each dot is a researcher projected from 8 features to 2 components (these capture <b>${Math.round((p.explained[0]+p.explained[1])*100)}%</b> of the variance). Churned researchers (red) cluster toward the recency-driven side — visible separation means the features carry real signal. Move the sliders and hit <b>Predict</b> to drop your profile onto the map.`;
-}
-function projectPCA(byKey){
-  const p=VIZ.pca;
-  const v=p.feature_order.map((k,i)=>(byKey[k]-p.scaler_mean[i])/p.scaler_scale[i]-p.pca_mean[i]);
-  return {x:p.components[0].reduce((s,c,i)=>s+c*v[i],0),
-          y:p.components[1].reduce((s,c,i)=>s+c*v[i],0)};
+  const sum=is3?p.explained[0]+p.explained[1]+p.explained[2]:p.explained[0]+p.explained[1];
+  const layout=is3
+    ? scene3d(`PC1 ${pct(p.explained[0])}`,`PC2 ${pct(p.explained[1])}`,`PC3 ${pct(p.explained[2])}`)
+    : layout2d(`PC1 (${pct(p.explained[0])} var)`,`PC2 (${pct(p.explained[1])} var)`);
+  Plotly.newPlot("plot",traces,layout,CFG);
+  cap(`<b>What it shows.</b> Each point is one of the 295 researchers, their 8 model
+    features compressed by PCA into ${is3?"3 axes":"2 axes"} that keep <b>${pct(sum)}</b>
+    of the total variance${is3?" (vs 58% in 2D — rotate the cube to see the extra separation)":""}.
+    Red = churned, green = active.
+    <b>How it connects.</b> The red/green split (driven mainly by recency along PC1)
+    is the visual proof that the engineered features actually separate leavers from
+    stayers — “better features beat better algorithms”. Hit <b>Predict</b> and your
+    slider profile drops in as a ${is3?"diamond":"star"}, so you see where it falls
+    relative to both groups.`);
 }
 
 function renderSVD(){
+  document.getElementById("pca-controls").style.display="none";
   const sv=VIZ.svd;
-  const paperPts=Object.entries(sv.papers).map(([id,o])=>({id,...o}));
-  const all=sv.authors.concat(paperPts);
-  const m=mapper(all);
-  let s=axes("latent factor 1","latent factor 2");
-  sv.authors.forEach(d=>{
-    s+=`<circle cx="${m.sx(d.x).toFixed(1)}" cy="${m.sy(d.y).toFixed(1)}" r="3.2"
-        fill="${d.churn?C_BAD:C_OK}" fill-opacity="0.45"/>`;
-  });
-  paperPts.forEach(d=>{
-    s+=`<rect x="${(m.sx(d.x)-3).toFixed(1)}" y="${(m.sy(d.y)-3).toFixed(1)}" width="6" height="6"
-        transform="rotate(45 ${m.sx(d.x).toFixed(1)} ${m.sy(d.y).toFixed(1)})"
-        fill="${C_PAPER}" fill-opacity="0.7"/>`;
-  });
+  const ch=sv.authors.filter(d=>d.churn), ac=sv.authors.filter(d=>!d.churn);
+  const papers=Object.entries(sv.papers).map(([id,o])=>({id,...o}));
+  const au=(arr,color,name)=>({type:"scatter",mode:"markers",name,
+    x:arr.map(d=>d.x),y:arr.map(d=>d.y),
+    text:arr.map(d=>`${d.author}<br>churn ${pct(d.prob)}`),hoverinfo:"text",
+    marker:{size:7,color,opacity:0.45}});
+  const traces=[au(ac,C_OK,"active author"),au(ch,C_BAD,"churned author"),
+    {type:"scatter",mode:"markers",name:"candidate paper",
+     x:papers.map(d=>d.x),y:papers.map(d=>d.y),
+     text:papers.map(d=>d.title),hoverinfo:"text",
+     marker:{size:8,color:C_PAPER,symbol:"diamond",opacity:0.75}}];
   if(lastRec){
     const a=sv.authors.find(x=>x.author===lastRec.author);
     if(a){
-      const AX=m.sx(a.x), AY=m.sy(a.y);
-      (lastRec.ids||[]).forEach(id=>{
-        const pp=sv.papers[id]; if(!pp) return;
-        const PX=m.sx(pp.x), PY=m.sy(pp.y);
-        s+=`<line x1="${AX}" y1="${AY}" x2="${PX}" y2="${PY}" stroke="${C_PAPER}" stroke-width="1.5" stroke-opacity="0.8"/>
-            <rect x="${PX-4}" y="${PY-4}" width="8" height="8" transform="rotate(45 ${PX} ${PY})" fill="${C_PAPER}"/>`;
-      });
-      s+=`<circle cx="${AX}" cy="${AY}" r="11" fill="none" stroke="${C_ACC}" stroke-width="2.5"/>
-          <circle cx="${AX}" cy="${AY}" r="4.5" fill="${C_ACC}"/>
-          <text x="${AX+13}" y="${AY+4}" fill="#eef1ff" font-size="12" font-weight="700">${a.author}</text>`;
+      const recs=(lastRec.ids||[]).map(id=>sv.papers[id]).filter(Boolean);
+      recs.forEach(pp=>traces.push({type:"scatter",mode:"lines",showlegend:false,
+        hoverinfo:"skip",x:[a.x,pp.x],y:[a.y,pp.y],line:{color:C_PAPER,width:1.6}}));
+      traces.push({type:"scatter",mode:"markers",name:"selected",x:[a.x],y:[a.y],
+        text:[a.author],hoverinfo:"text",
+        marker:{size:17,color:C_ACC,symbol:"star",line:{color:"#fff",width:2}}});
+      traces.push({type:"scatter",mode:"markers",showlegend:false,
+        x:recs.map(p=>p.x),y:recs.map(p=>p.y),text:recs.map(p=>p.title),hoverinfo:"text",
+        marker:{size:12,color:C_PAPER,symbol:"diamond",line:{color:"#fff",width:1.6}}});
     }
   }
-  document.getElementById("plot").innerHTML=s;
-  setLegend([{c:C_BAD,t:"churned author"},{c:C_OK,t:"active author"},{c:C_PAPER,t:"candidate paper"},{c:C_ACC,t:"selected"}]);
-  document.getElementById("plot-cap").innerHTML=
-    `The recommender's latent space (truncated SVD, <b>${Math.round(sv.explained*100)}%</b> variance). Authors (circles) and recent papers (diamonds) are placed by research interest. Click a researcher in the “At-risk” list — the lines show the recommended papers as the nearest ones in this space, which is exactly how the engine picks them.`;
+  Plotly.newPlot("plot",traces,layout2d("latent factor 1","latent factor 2"),CFG);
+  cap(`<b>What it shows.</b> The recommender's latent space (truncated SVD,
+    <b>${pct(sv.explained)}</b> of variance). Every author (circle) and recent paper
+    (gold diamond) is placed by research interest; closeness = topical similarity.
+    <b>How it connects.</b> This is literally where <code>/recommend</code> works:
+    click an at-risk researcher in the list above and the gold lines link them to
+    their recommended papers — the nearest diamonds in this space. Hover any point
+    for its name/title.`);
 }
 
 function renderImp(){
-  const imp=VIZ.importance, max=Math.max(...imp.map(d=>d.value));
-  const bw=W-2*PAD-150, top=30, rh=(H-top-30)/imp.length;
-  let s="";
-  imp.forEach((d,i)=>{
-    const y=top+i*rh, w=(d.value/max)*bw;
-    s+=`<text x="${PAD+146}" y="${y+rh/2+4}" fill="#eef1ff" font-size="12" text-anchor="end">${d.feature}</text>
-        <rect x="${PAD+150}" y="${y+4}" width="${w.toFixed(1)}" height="${rh-8}" rx="4" fill="${C_ACC}"/>
-        <text x="${PAD+156+w}" y="${y+rh/2+4}" fill="#9aa3d4" font-size="11">${(d.value*100).toFixed(1)}%</text>`;
-  });
-  document.getElementById("plot").innerHTML=s;
-  setLegend([{c:C_ACC,t:"RandomForest importance (share of total)"}]);
-  document.getElementById("plot-cap").innerHTML=
-    `How much each of the 8 served features drives the RandomForest. <b>${imp[0].feature}</b> dominates — recency is the strongest churn signal, confirming “better features beat better algorithms”.`;
+  document.getElementById("pca-controls").style.display="none";
+  const imp=[...VIZ.importance].reverse();   // largest on top
+  Plotly.newPlot("plot",[{type:"bar",orientation:"h",
+    x:imp.map(d=>d.value),y:imp.map(d=>d.feature),
+    text:imp.map(d=>(d.value*100).toFixed(1)+"%"),textposition:"auto",
+    marker:{color:C_ACC},hoverinfo:"x+y"}],
+    layout2d("importance (share of total)","",{margin:{l:170,r:30,t:10,b:50}}),CFG);
+  cap(`<b>What it shows.</b> How much each of the 8 served features contributes to the
+    RandomForest's decisions (Gini importance, sums to 100%).
+    <b>How it connects.</b> <b>${VIZ.importance[0].feature}</b> and recent-output share
+    dominate — the same recency/frequency signals the four selection methods agreed on.
+    It's the quantitative version of the unit's motto: a simple model on strong temporal
+    features beats a complex one on raw fields.`);
 }
 
 function renderNet(){
-  const net=VIZ.network, m=mapper(net.nodes);
-  let s="";
-  net.edges.forEach(([i,j])=>{
-    const a=net.nodes[i], b=net.nodes[j];
-    s+=`<line x1="${m.sx(a.x).toFixed(1)}" y1="${m.sy(a.y).toFixed(1)}" x2="${m.sx(b.x).toFixed(1)}" y2="${m.sy(b.y).toFixed(1)}" stroke="#3a4488" stroke-opacity="0.35" stroke-width="0.7"/>`;
-  });
-  net.nodes.forEach(d=>{
-    const r=2.5+1.6*Math.sqrt(d.deg);
-    s+=`<circle cx="${m.sx(d.x).toFixed(1)}" cy="${m.sy(d.y).toFixed(1)}" r="${r.toFixed(1)}"
-        fill="${d.churn?C_BAD:C_OK}" fill-opacity="0.85" stroke="#0f1226" stroke-width="0.5"/>`;
-  });
-  document.getElementById("plot").innerHTML=s;
-  setLegend([{c:C_BAD,t:"churned"},{c:C_OK,t:"active"}]);
-  document.getElementById("plot-cap").innerHTML=
-    `Co-authorship graph: ${net.nodes.length} researchers, ${net.n_edges} collaboration edges (node size = number of co-authors). Isolated, low-degree nodes skew red — researchers without collaborators churn more, which is why network centralities improve the model and motivate collaboration-based retention.`;
+  document.getElementById("pca-controls").style.display="none";
+  const net=VIZ.network, n=net.nodes;
+  const ex=[],ey=[];
+  net.edges.forEach(([i,j])=>{ex.push(n[i].x,n[j].x,null);ey.push(n[i].y,n[j].y,null);});
+  const edge={type:"scatter",mode:"lines",hoverinfo:"skip",showlegend:false,
+    x:ex,y:ey,line:{color:"#3a4488",width:0.6},opacity:0.5};
+  const node=(arr,color,name)=>({type:"scatter",mode:"markers",name,
+    x:arr.map(d=>d.x),y:arr.map(d=>d.y),
+    text:arr.map(d=>`${d.author}<br>${d.deg} co-author${d.deg===1?"":"s"}`),hoverinfo:"text",
+    marker:{size:arr.map(d=>6+2.4*Math.sqrt(d.deg)),color,opacity:0.88,
+      line:{color:"#0f1226",width:0.5}}});
+  const ch=n.filter(d=>d.churn),ac=n.filter(d=>!d.churn);
+  const lay=layout2d("","");
+  lay.xaxis.visible=false; lay.yaxis.visible=false;
+  Plotly.newPlot("plot",[edge,node(ac,C_OK,"active"),node(ch,C_BAD,"churned")],lay,CFG);
+  cap(`<b>What it shows.</b> The co-authorship graph — ${net.nodes.length} researchers,
+    ${net.n_edges} collaboration links (an edge = they share a pre-cutoff paper; node
+    size = number of co-authors). Drag to pan, scroll to zoom, hover for a name.
+    <b>How it connects.</b> Sparse, low-degree nodes on the rim skew red: isolated
+    researchers churn more. That's why adding degree/betweenness/PageRank centralities
+    lifts the model (setup C) and why “collaboration matchmaking” is a retention lever
+    in the report.`);
 }
 
 const RENDER={pca:renderPCA, svd:renderSVD, imp:renderImp, net:renderNet};
 function renderTab(){ if(VIZ) RENDER[activeTab](); }
-document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
+document.querySelectorAll(".tab[data-tab]").forEach(b=>b.onclick=()=>{
   activeTab=b.dataset.tab;
-  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));
+  document.querySelectorAll(".tab[data-tab]").forEach(x=>x.classList.toggle("active",x===b));
+  renderTab();
+});
+document.querySelectorAll(".tab.dim").forEach(b=>b.onclick=()=>{
+  pcaDim=parseInt(b.dataset.dim);
+  document.querySelectorAll(".tab.dim").forEach(x=>x.classList.toggle("active",x===b));
   renderTab();
 });
 async function loadViz(){ VIZ=await (await fetch("/viz")).json(); renderTab(); }

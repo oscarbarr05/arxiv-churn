@@ -55,12 +55,13 @@ churn_probs = rec_bundle["churn_probs"]             # Series indexed by author
 X = df[selected]
 scaler = StandardScaler().fit(X)
 Xs = scaler.transform(X)
-pca = PCA(n_components=2, random_state=SEED).fit(Xs)
+pca = PCA(n_components=3, random_state=SEED).fit(Xs)   # 3 comps: 2D + 3D views
 coords = pca.transform(Xs)
 probs = churn_probs.reindex(df["author"]).fillna(0.0).to_numpy()
 pca_view = {
     "points": [
         {"x": float(coords[i, 0]), "y": float(coords[i, 1]),
+         "z": float(coords[i, 2]),
          "churn": int(df["churned"].iloc[i]), "prob": round(float(probs[i]), 3),
          "author": df["author"].iloc[i]}
         for i in range(len(df))
@@ -69,7 +70,7 @@ pca_view = {
     "scaler_mean": [float(v) for v in scaler.mean_],
     "scaler_scale": [float(v) for v in scaler.scale_],
     "pca_mean": [float(v) for v in pca.mean_],
-    "components": [[float(v) for v in row] for row in pca.components_],
+    "components": [[float(v) for v in row] for row in pca.components_],  # 3x8
     "explained": [round(float(v), 3) for v in pca.explained_variance_ratio_],
 }
 
