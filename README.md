@@ -125,7 +125,7 @@ arxiv-churn/
 └── REPORT.md              # written report (3–5 pages)
 ```
 
-## Rebuilding from scratch (optional, not needed for grading)
+## Rebuilding from scratch 
 
 ```bash
 python scripts/collect_data.py     # ~30 min (arXiv rate limit)
